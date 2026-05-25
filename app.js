@@ -175,7 +175,37 @@ function h(value) {
 
 function trackingUrl(order) {
   const base = `${location.origin}${location.pathname}`;
-  return `${base}#/track/${order.token}`;
+  return `${base}#/track/${order.token}?o=${encodeShareData(publicOrder(order))}`;
+}
+
+function publicOrder(order) {
+  const mockupImage = String(order.mockupImage || "");
+  return {
+    ...order,
+    mockupImage: mockupImage.length < 100000 ? mockupImage : "",
+  };
+}
+
+function encodeShareData(value) {
+  const json = JSON.stringify(value);
+  const bytes = new TextEncoder().encode(json);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+function decodeShareData(value) {
+  if (!value) return null;
+  try {
+    const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return null;
+  }
 }
 
 function whatsappPhone(value) {
@@ -621,7 +651,9 @@ function applyOrderFilters() {
 }
 
 async function renderTracker(token) {
-  const order = (await loadOrders()).find((item) => item.token === token);
+  const params = new URLSearchParams(location.hash.split("?")[1] || "");
+  const sharedOrder = decodeShareData(params.get("o"));
+  const order = (await loadOrders()).find((item) => item.token === token) || (sharedOrder ? normalizeOrder(sharedOrder) : null);
   const settings = await loadSettings();
   if (!order) {
     app.innerHTML = `
