@@ -1,5 +1,7 @@
 const STORAGE_KEY = "order-tracker-mvp-v1";
 const SETTINGS_KEY = "order-tracker-settings-v1";
+const ADMIN_UNLOCK_KEY = "kt-sport-admin-unlocked";
+const ADMIN_PIN = "2026";
 
 const statuses = [
   "ຮັບອໍເດີ້ແລ້ວ",
@@ -365,6 +367,45 @@ async function renderAdmin() {
   bindAdmin();
 }
 
+async function renderAdminLock() {
+  const settings = await loadSettings();
+  app.innerHTML = shell(
+    `
+      <main class="page">
+        <section class="panel admin-lock">
+          <div class="section-title">
+            <div>
+              <h2>ໜ້າ Admin ຖືກລັອກ</h2>
+              <p>ໃສ່ PIN ເພື່ອເຂົ້າແກ້ໄຂອໍເດີ້</p>
+            </div>
+          </div>
+          <form id="adminLockForm" class="form-grid compact-form">
+            <div class="field full">
+              <label>Admin PIN</label>
+              <input class="input" name="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="ໃສ່ PIN" autofocus />
+            </div>
+            <div class="field full">
+              <button class="btn primary" type="submit">${icon("icon-link")}ເຂົ້າ Admin</button>
+            </div>
+          </form>
+        </section>
+      </main>
+    `,
+    "",
+    settings
+  );
+  document.querySelector("#adminLockForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const pin = new FormData(event.currentTarget).get("pin");
+    if (pin !== ADMIN_PIN) {
+      toast("PIN ບໍ່ຖືກ");
+      return;
+    }
+    sessionStorage.setItem(ADMIN_UNLOCK_KEY, "yes");
+    await renderAdmin();
+  });
+}
+
 function settingsForm(settings) {
   const value = (key) => h(settings[key]);
   return `
@@ -663,7 +704,6 @@ async function renderTracker(token) {
             <div class="empty">
               <h2>ບໍ່ພົບອໍເດີ້</h2>
               <p>ກວດສອບ link ອີກຄັ້ງ ຫຼືຕິດຕໍ່ຮ້ານ.</p>
-              <a class="btn" href="#/admin">ກັບໄປຫນ້າ admin</a>
             </div>
           </div>
         </div>
@@ -683,7 +723,6 @@ async function renderTracker(token) {
               <p>${h(settings.tagline)}</p>
             </div>
           </div>
-          <a class="btn" href="#/admin">${icon("icon-link")}Admin</a>
         </header>
         <article class="tracking-card">
           <section class="jersey-hero">
@@ -787,6 +826,8 @@ async function router() {
   const hash = location.hash || "#/admin";
   if (hash.startsWith("#/track/")) {
     await renderTracker(hash.replace("#/track/", "").split("?")[0]);
+  } else if (sessionStorage.getItem(ADMIN_UNLOCK_KEY) !== "yes") {
+    await renderAdminLock();
   } else {
     await renderAdmin();
   }
