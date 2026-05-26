@@ -784,10 +784,10 @@ async function renderTracker(token) {
   const publishedOrder = await loadPublishedOrder(token);
   const order = localOrder || sharedOrder || publishedOrder
     ? normalizeOrder({
-      ...(publishedOrder || {}),
       ...(sharedOrder || {}),
+      ...(publishedOrder || {}),
       ...(localOrder || {}),
-      mockupImage: localOrder?.mockupImage || sharedOrder?.mockupImage || publishedOrder?.mockupImage || "",
+      mockupImage: publishedOrder?.mockupImage || localOrder?.mockupImage || sharedOrder?.mockupImage || "",
     })
     : null;
   const settings = await loadSettings();
