@@ -2,6 +2,8 @@ const STORAGE_KEY = "order-tracker-mvp-v1";
 const SETTINGS_KEY = "order-tracker-settings-v1";
 const ADMIN_UNLOCK_KEY = "kt-sport-admin-unlocked";
 const ADMIN_PIN = "2026";
+const SHARE_IMAGE_MAX_BYTES = 140000;
+const SHARE_IMAGE_MAX_EDGE = 900;
 
 const statuses = [
   "ຮັບອໍເດີ້ແລ້ວ",
@@ -180,12 +182,23 @@ function trackingUrl(order) {
   return `${base}#/track/${order.token}?o=${encodeShareData(publicOrder(order))}`;
 }
 
+async function trackingUrlForShare(order) {
+  return trackingUrl(await shareReadyOrder(order));
+}
+
 function publicOrder(order) {
   const mockupImage = String(order.mockupImage || "");
   return {
     ...order,
-    mockupImage: mockupImage.length < 100000 ? mockupImage : "",
+    mockupImage: mockupImage.length <= SHARE_IMAGE_MAX_BYTES ? mockupImage : "",
   };
+}
+
+async function shareReadyOrder(order) {
+  const mockupImage = String(order.mockupImage || "");
+  if (!mockupImage || mockupImage.length <= SHARE_IMAGE_MAX_BYTES) return order;
+  const compressed = await compressImageSource(mockupImage);
+  return { ...order, mockupImage: compressed.length <= SHARE_IMAGE_MAX_BYTES ? compressed : "" };
 }
 
 function encodeShareData(value) {
@@ -228,6 +241,13 @@ function whatsappUrl(order) {
   return phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
 }
 
+async function whatsappUrlForShare(order) {
+  const shareOrder = await shareReadyOrder(order);
+  const phone = whatsappPhone(shareOrder.phone);
+  const text = encodeURIComponent(`ສະບາຍດີ ${shareOrder.customerName}, ນີ້ແມ່ນ link ຕິດຕາມອໍເດີ້ ${shareOrder.code}: ${trackingUrl(shareOrder)}`);
+  return phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+}
+
 function money(value) {
   const amount = Number(value || 0);
   if (!amount) return "-";
@@ -245,6 +265,60 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function dataUrlSize(value) {
+  return Math.ceil(String(value || "").length * 0.75);
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+async function compressImageSource(src) {
+  if (!src || dataUrlSize(src) <= SHARE_IMAGE_MAX_BYTES) return src || "";
+  const image = await loadImage(src);
+  let maxEdge = SHARE_IMAGE_MAX_EDGE;
+
+  for (let pass = 0; pass < 5; pass += 1) {
+    const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    for (let quality = 0.82; quality >= 0.42; quality -= 0.1) {
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+      if (dataUrlSize(dataUrl) <= SHARE_IMAGE_MAX_BYTES) return dataUrl;
+    }
+    maxEdge = Math.round(maxEdge * 0.82);
+  }
+
+  const canvas = document.createElement("canvas");
+  const scale = Math.min(1, 420 / Math.max(image.naturalWidth, image.naturalHeight));
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.38);
+}
+
+async function fileToShareImage(file) {
+  if (!file) return "";
+  const raw = await fileToDataUrl(file);
+  return compressImageSource(raw);
 }
 
 async function copyText(text, message = "ຄັດລອກແລ້ວ") {
@@ -581,7 +655,7 @@ function bindAdmin() {
   document.querySelector("#mockupInput").addEventListener("change", async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    const dataUrl = await fileToDataUrl(file);
+    const dataUrl = await fileToShareImage(file);
     document.querySelector('input[name="mockupImage"]').value = dataUrl;
     document.querySelector("#mockupPreview").className = "mockup-preview has-image";
     document.querySelector("#mockupPreview").dataset.openMockup = dataUrl;
@@ -592,7 +666,8 @@ function bindAdmin() {
   document.querySelector("#orderForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const uploadedMockup = await fileToDataUrl(event.currentTarget.mockupFile.files[0]);
+    const uploadedMockup = await fileToShareImage(event.currentTarget.mockupFile.files[0]);
+    const existingMockup = data.mockupImage ? await compressImageSource(data.mockupImage) : "";
     const orders = await loadOrders();
     const record = {
       ...data,
@@ -602,7 +677,7 @@ function bindAdmin() {
       quantity: Number(data.quantity || 0),
       totalAmount: Number(data.totalAmount || 0),
       depositAmount: Number(data.depositAmount || 0),
-      mockupImage: uploadedMockup || data.mockupImage || "",
+      mockupImage: uploadedMockup || existingMockup || "",
     };
     delete record.mockupFile;
     const index = orders.findIndex((order) => order.id === record.id);
@@ -649,11 +724,11 @@ function bindAdmin() {
     }
 
     if (button.dataset.copy) {
-      copyText(trackingUrl(order), "ຄັດລອກ link ແລ້ວ");
+      copyText(await trackingUrlForShare(order), "ຄັດລອກ link ພ້ອມຮູບ mockup ແລ້ວ");
     }
 
     if (button.dataset.whatsapp) {
-      window.open(whatsappUrl(order), "_blank", "noopener");
+      window.open(await whatsappUrlForShare(order), "_blank", "noopener");
     }
 
     if (button.dataset.delete) {
