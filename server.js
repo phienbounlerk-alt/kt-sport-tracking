@@ -418,8 +418,8 @@ async function start() {
   await fs.mkdir(path.dirname(dataFile), { recursive: true });
   await fs.mkdir(uploadsDir, { recursive: true });
   await readOrders();
-  server.listen(port, () => {
-    console.log(`KT SPORT server running at http://localhost:${port}`);
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`KT SPORT server running at http://0.0.0.0:${port}`);
     console.log(`Data file: ${dataFile}`);
     console.log(`Uploads: ${uploadsDir}`);
   });
