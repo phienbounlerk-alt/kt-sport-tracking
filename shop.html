@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="lo">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KT SPORT - Shop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand brand-link" href="./index.html">
+        <div class="brand-mark"><img src="./assets/kt-sport-logo.jpg" alt="KT SPORT logo" /></div>
+        <div>
+          <strong>KT SPORT</strong>
+          <span>ເຄທີ ສະປອສ</span>
+        </div>
+      </a>
+      <nav class="nav-actions" aria-label="Shop navigation">
+        <a class="nav-link" href="./index.html">Tracking</a>
+        <a class="icon-button cart-nav" href="#cart" title="Cart" aria-label="Cart">🛒<span id="cartCount">0</span></a>
+      </nav>
+    </header>
+
+    <main class="shop-shell">
+      <section class="shop-hero">
+        <div>
+          <p class="welcome-copy">ຍິນດີຕ້ອນຮັບ</p>
+          <p class="eyebrow">KT SPORT SHOP</p>
+          <h1>ຮ້ານສິນຄ້າກິລາ ແລະ ຊຸດທີມ</h1>
+          <p>ເລືອກສິນຄ້າ, ໃສ່ກະຕ່າ, ແລ້ວສົ່ງລາຍການຫາຮ້ານເພື່ອສັ່ງຜະລິດ.</p>
+        </div>
+        <div class="shop-hero-stats">
+          <strong id="productTotal">500</strong>
+          <span>ລາຍການພ້ອມຂາຍ</span>
+        </div>
+      </section>
+
+      <section class="shop-controls" aria-label="Product filters">
+        <input id="productSearch" type="search" placeholder="ຄົ້ນຫາສິນຄ້າ, ເຊັ່ນ ເສື້ອ, ກາງເກງ, ຊຸດທີມ" />
+        <select id="categoryFilter" aria-label="Category">
+          <option value="ALL">ທຸກໝວດ</option>
+        </select>
+        <select id="sortFilter" aria-label="Sort">
+          <option value="popular">ຍອດນິຍົມ</option>
+          <option value="price-asc">ລາຄາຕ່ຳຫາສູງ</option>
+          <option value="price-desc">ລາຄາສູງຫາຕ່ຳ</option>
+        </select>
+      </section>
+
+      <section class="catalog-layout">
+        <div>
+          <div class="catalog-title-row">
+            <h2>ສິນຄ້າທັງໝົດ</h2>
+            <span id="resultCount"></span>
+          </div>
+          <div id="productGrid" class="product-grid"></div>
+          <button id="loadMoreButton" class="load-more-button" type="button">ໂຫຼດເພີ່ມ</button>
+        </div>
+
+        <aside id="cart" class="cart-panel">
+          <h2>ກະຕ່າສິນຄ້າ</h2>
+          <div id="cartItems" class="cart-items"></div>
+          <div class="cart-total">
+            <span>ລວມ</span>
+            <strong id="cartTotal">LAK 0</strong>
+          </div>
+          <button id="checkoutButton" type="button">ສົ່ງອໍເດີ້ຫາ WhatsApp</button>
+          <button id="clearCartButton" class="ghost-button" type="button">ລ້າງກະຕ່າ</button>
+        </aside>
+      </section>
+    </main>
+
+    <a class="contact-float" href="https://wa.me/8562029933696" aria-label="Contact shop">☎</a>
+
+    <footer class="footer">
+      <div>
+        <strong>KT SPORT</strong>
+        <p>ເຄທີ ສະປອສ - shop catalog</p>
+      </div>
+      <p>500 items ready</p>
+    </footer>
+
+    <script src="./shop.js"></script>
+  </body>
+</html>
