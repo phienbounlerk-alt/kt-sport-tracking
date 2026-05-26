@@ -6,8 +6,8 @@ COPY package.json ./
 COPY . .
 
 ENV NODE_ENV=production
-ENV PORT=4173
+ENV PORT=10000
 
-EXPOSE 4173
+EXPOSE 10000
 
 CMD ["node", "server.js"]
