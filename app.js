@@ -223,6 +223,17 @@ function decodeShareData(value) {
   }
 }
 
+async function loadPublishedOrder(token) {
+  if (!token) return null;
+  try {
+    const response = await fetch(`published/orders/${encodeURIComponent(token)}.json`, { cache: "no-store" });
+    if (!response.ok) return null;
+    return normalizeOrder(await response.json());
+  } catch {
+    return null;
+  }
+}
+
 function whatsappPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
   if (!digits) return "";
@@ -769,7 +780,16 @@ function applyOrderFilters() {
 async function renderTracker(token) {
   const params = new URLSearchParams(location.hash.split("?")[1] || "");
   const sharedOrder = decodeShareData(params.get("o"));
-  const order = (await loadOrders()).find((item) => item.token === token) || (sharedOrder ? normalizeOrder(sharedOrder) : null);
+  const localOrder = (await loadOrders()).find((item) => item.token === token);
+  const publishedOrder = await loadPublishedOrder(token);
+  const order = localOrder || sharedOrder || publishedOrder
+    ? normalizeOrder({
+      ...(publishedOrder || {}),
+      ...(sharedOrder || {}),
+      ...(localOrder || {}),
+      mockupImage: localOrder?.mockupImage || sharedOrder?.mockupImage || publishedOrder?.mockupImage || "",
+    })
+    : null;
   const settings = await loadSettings();
   if (!order) {
     app.innerHTML = `

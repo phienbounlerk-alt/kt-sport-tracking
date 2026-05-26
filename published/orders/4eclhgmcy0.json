@@ -1,0 +1,18 @@
+{
+  "paymentStatus": "ມັດຈຳແລ້ວ",
+  "totalAmount": 3500000,
+  "depositAmount": 1725000,
+  "mockupImage": "published/mockups/4eclhgmcy0.jpg",
+  "id": "ea067ef2-5391-4995-834f-990211583ab5",
+  "token": "4eclhgmcy0",
+  "code": "26-05237",
+  "statusIndex": 2,
+  "customerName": "TK ELECTRIC.LTD",
+  "phone": "02099791126",
+  "productType": "ເສື້ອພະນັກງານ",
+  "quantity": 36,
+  "teamName": "TK ELECTRIC.LTD",
+  "orderDate": "2026-05-25",
+  "dueDate": "2026-06-04",
+  "note": ""
+}
