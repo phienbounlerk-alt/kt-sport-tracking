@@ -1,0 +1,18 @@
+{
+  "paymentStatus": "ຍັງບໍ່ຈ່າຍ",
+  "totalAmount": 1200000,
+  "depositAmount": 500000,
+  "mockupImage": "",
+  "id": "a97214e7-6bda-48e3-a9f5-ed1d40445295",
+  "token": "biq21tyoju",
+  "code": "J260523862",
+  "statusIndex": 0,
+  "customerName": "ລູກຄ້າ API Test",
+  "phone": "020 2222 3333",
+  "productType": "ເສື້ອບານ",
+  "quantity": 12,
+  "teamName": "API United",
+  "orderDate": "2026-05-23",
+  "dueDate": "2026-06-02",
+  "note": ""
+}

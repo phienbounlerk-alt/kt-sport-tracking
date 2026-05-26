@@ -1,0 +1,18 @@
+{
+  "paymentStatus": "ມັດຈຳແລ້ວ",
+  "totalAmount": 1000000,
+  "depositAmount": 500000,
+  "mockupImage": "published/mockups/bc1b6vodpd.jpg",
+  "id": "be9846c6-2c7a-4396-994d-a24375cec286",
+  "token": "bc1b6vodpd",
+  "code": "26-05249",
+  "statusIndex": 5,
+  "customerName": "K900",
+  "phone": "020 2222 3333",
+  "productType": "ເສື້ອບານ",
+  "quantity": 12,
+  "teamName": "K900",
+  "orderDate": "2026-05-26",
+  "dueDate": "2026-06-05",
+  "note": ""
+}

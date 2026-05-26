@@ -1,0 +1,18 @@
+{
+  "paymentStatus": "ມັດຈຳແລ້ວ",
+  "totalAmount": 2400000,
+  "depositAmount": 1000000,
+  "mockupImage": "",
+  "id": "8777891d-a4b5-4992-a95e-b2b0c0ee4c5d",
+  "token": "demo-order",
+  "code": "KT260523101",
+  "statusIndex": 4,
+  "customerName": "ທີມ ສິງທອງ FC",
+  "phone": "020 5555 1234",
+  "productType": "ເສື້ອບານ",
+  "quantity": 24,
+  "teamName": "Singthong FC",
+  "orderDate": "2026-05-23",
+  "dueDate": "2026-06-02",
+  "note": "ແບບຖືກອະນຸມັດແລ້ວ ກຳລັງເຂົ້າຂັ້ນຕອນຜະລິດ."
+}

@@ -1,0 +1,18 @@
+{
+  "id": "9aa3ad6c-e60a-4336-b0e5-16ea41e436b7",
+  "token": "9tytewub7t",
+  "code": "26-455",
+  "statusIndex": 6,
+  "paymentStatus": "ມັດຈຳແລ້ວ",
+  "customerName": "KeoJai",
+  "phone": "02099791126",
+  "productType": "ເສື້ອທີມ",
+  "quantity": 45,
+  "teamName": "ຄົນມັກບິນ",
+  "orderDate": "2026-05-23",
+  "dueDate": "2026-06-02",
+  "totalAmount": 6525000,
+  "depositAmount": 3000000,
+  "mockupImage": "published/mockups/9tytewub7t.jpg",
+  "note": ""
+}
