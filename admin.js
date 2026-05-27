@@ -16,11 +16,11 @@ const productionSteps = [
 ];
 
 const roleDefinitions = [
-  { key: "president", title: "ປະທານ", name: "KHOTA", canSeeValue: true, canUseTouchId: true, canAccessPeople: true },
-  { key: "vice", title: "ຮອງປະທານ", name: "KHAMTAN", canSeeValue: true, canUseTouchId: true, canAccessPeople: true },
-  { key: "manager", title: "ຜູ້ຈັດການ", name: "JALOUN", canSeeValue: false, canUseTouchId: true },
-  { key: "accounting", title: "ບັນຊີ", name: "Accounting", canSeeValue: true, canUseTouchId: true },
-  { key: "engineer", title: "Software Engineer", name: "Engineer", canSeeValue: true, canUseTouchId: true, engineerOnly: true, noPasscode: true },
+  { key: "president", title: "ປະທານ", name: "KHOTA", canSeeValue: true, canUseTouchId: true, canAccessPeople: true, requiresFaceScan: true },
+  { key: "vice", title: "ຮອງປະທານ", name: "KHAMTAN", canSeeValue: true, canUseTouchId: true, canAccessPeople: true, requiresFaceScan: true },
+  { key: "manager", title: "ຜູ້ຈັດການ", name: "JALOUN", canSeeValue: false, canUseTouchId: true, requiresFaceScan: true },
+  { key: "accounting", title: "ບັນຊີ", name: "Accounting", canSeeValue: true, canUseTouchId: true, requiresFaceScan: true },
+  { key: "engineer", title: "Software Engineer", name: "Engineer", canSeeValue: true, canUseTouchId: true, canAccessPeople: true, engineerOnly: true, noPasscode: true },
   { key: "admin", title: "Admin", name: "No password", canSeeValue: false, noPasscode: true },
 ];
 
@@ -45,6 +45,7 @@ let activeRole = null;
 let lastRoleClick = { key: "", at: 0 };
 let lastAdminClick = { name: "", at: 0 };
 let executiveUnlocked = false;
+let engineerUnlocked = false;
 let catalogItems = [];
 let catalogSearch = "";
 let filters = {
@@ -193,6 +194,9 @@ function setRoleWorkspace(roleKey) {
   if (role.canAccessPeople) {
     executiveUnlocked = true;
   }
+  if (role.key === "engineer") {
+    engineerUnlocked = true;
+  }
   if (role.key === "admin" && (activeMenu === "ALL" || activeMenu === "CATALOG")) {
     activeMenu = settings.adminNames[0];
   }
@@ -227,6 +231,7 @@ async function beginRoleEntry(roleKey) {
   refreshRoleLogin();
   await playRoleAnimation(roleKey);
   const role = roleInfo(roleKey);
+  const canEngineerBypass = engineerUnlocked && role.key !== "engineer";
   const canExecutiveBypass = executiveUnlocked && (role.key === "manager" || role.key === "accounting");
   if (role.key === "engineer") {
     await runFaceScan();
@@ -234,10 +239,13 @@ async function beginRoleEntry(roleKey) {
     setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(role)} ສຳເລັດ`, "success");
     return;
   }
-  if (role.noPasscode || canExecutiveBypass) {
+  if (canEngineerBypass || role.noPasscode || canExecutiveBypass) {
     setRoleWorkspace(roleKey);
     setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(role)} ສຳເລັດ`, "success");
     return;
+  }
+  if (role.requiresFaceScan) {
+    await runFaceScan(roleDisplay(role));
   }
   document.querySelector("#rolePrompt").hidden = false;
   document.querySelector("#rolePasscodeInput").focus();
@@ -252,10 +260,11 @@ function lockRoleWorkspace() {
   refreshRoleLogin();
 }
 
-function unlockSelectedRole(passcode) {
+async function unlockSelectedRole(passcode) {
   const role = roleInfo(selectedRole);
+  const canEngineerBypass = engineerUnlocked && role.key !== "engineer";
   const canExecutiveBypass = executiveUnlocked && (role.key === "manager" || role.key === "accounting");
-  if (role.noPasscode || canExecutiveBypass) {
+  if (canEngineerBypass || role.noPasscode || canExecutiveBypass) {
     setRoleWorkspace(selectedRole);
     setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(role)} ສຳເລັດ`, "success");
     return true;
@@ -277,12 +286,13 @@ async function beginAdminEntry(adminName) {
   setAdminNotice(`ເຂົ້າ ${adminName}: ຈັດການອໍເດີ້ ແລະ copy tracking link ໄດ້ແລ້ວ`, "success");
 }
 
-async function runFaceScan() {
+async function runFaceScan(label = "Software Engineer") {
   const panel = document.querySelector("#faceScanPanel");
   const video = document.querySelector("#faceScanVideo");
   const notice = document.querySelector("#faceScanNotice");
   let stream = null;
   panel.hidden = false;
+  document.querySelector("#faceScanTitle").textContent = label;
   notice.textContent = "ກຳລັງສະແກນໜ້າ...";
   try {
     if (navigator.mediaDevices?.getUserMedia) {
@@ -1186,6 +1196,7 @@ function setupAdmin() {
   document.querySelector("#adminMenuTabs").addEventListener("click", (event) => {
     const menuButton = event.target.closest("[data-admin-menu]");
     if (!menuButton) return;
+    if (event.target.matches("[data-admin-name-index]")) return;
     const menu = menuButton.dataset.adminMenu;
     if (roleInfo(activeRole).key === "admin") {
       event.preventDefault();
@@ -1195,7 +1206,6 @@ function setupAdmin() {
       if (isSecondClick) beginAdminEntry(menu);
       return;
     }
-    if (event.target.matches("[data-admin-name-index]")) return;
     setAdminView(menu);
   });
   document.querySelector("#adminMenuTabs").addEventListener("change", (event) => {
