@@ -185,6 +185,9 @@ function refreshRoleLogin() {
 function setRoleWorkspace(roleKey) {
   activeRole = roleKey;
   const role = roleInfo(roleKey);
+  if (role.key === "admin" && (activeMenu === "ALL" || activeMenu === "CATALOG")) {
+    activeMenu = settings.adminNames[0];
+  }
   localStorage.setItem("ktActiveRole", roleKey);
   document.querySelector("#roleAccessPanel").hidden = true;
   document.querySelector("#adminWorkspace").hidden = false;
@@ -194,6 +197,21 @@ function setRoleWorkspace(roleKey) {
   document.querySelector("#registerTouchIdButton").hidden = !role.canUseTouchId || !window.PublicKeyCredential;
   renderStats();
   renderOrdersList();
+}
+
+function animateIntoRole(roleKey) {
+  const role = roleInfo(roleKey);
+  const transition = document.querySelector("#roleTransition");
+  document.querySelector("#roleTransitionTitle").textContent = "KT SPORT";
+  document.querySelector("#roleTransitionSubtitle").textContent = `ກຳລັງເຂົ້າ ${roleDisplay(role)}`;
+  transition.hidden = false;
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      transition.hidden = true;
+      setRoleWorkspace(roleKey);
+      resolve();
+    }, 850);
+  });
 }
 
 function lockRoleWorkspace() {
@@ -206,7 +224,7 @@ function lockRoleWorkspace() {
 
 function unlockSelectedRole(passcode) {
   if (roleInfo(selectedRole).noPasscode) {
-    setRoleWorkspace(selectedRole);
+    animateIntoRole(selectedRole);
     setAdminNotice("ເຂົ້າເມນູ Admin ສຳເລັດ", "success");
     return true;
   }
@@ -214,7 +232,7 @@ function unlockSelectedRole(passcode) {
     setRoleNotice("ລະຫັດບໍ່ຖືກ", "error");
     return false;
   }
-  setRoleWorkspace(selectedRole);
+  animateIntoRole(selectedRole);
   setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(roleInfo(selectedRole))} ສຳເລັດ`, "success");
   return true;
 }
@@ -287,7 +305,7 @@ async function unlockWithTouchId() {
         timeout: 60000,
       },
     });
-    setRoleWorkspace(selectedRole);
+    await animateIntoRole(selectedRole);
     setAdminNotice(`ເຂົ້າ ${roleDisplay(role)} ດ້ວຍ Touch ID ສຳເລັດ`, "success");
   } catch {
     setRoleNotice("Touch ID ບໍ່ສຳເລັດ", "error");
@@ -323,26 +341,33 @@ function filteredOrders() {
 
 function renderAdminMenu() {
   const counts = settings.adminNames.map((name) => orders.filter((order) => order.assignedAdmin === name).length);
-  document.querySelector("#adminMenuTabs").innerHTML = [
-    `<button class="admin-menu-tab ${activeMenu === "ALL" ? "active" : ""}" data-admin-menu="ALL" type="button">
-      <strong>ອໍເດີ້ທັງໝົດ</strong><span>${orders.length}</span>
-    </button>`,
-    ...settings.adminNames.map(
-      (name, index) => `
+  const adminTabs = settings.adminNames.map(
+    (name, index) => `
         <div class="admin-menu-tab admin-name-tab ${activeMenu === name ? "active" : ""}" data-admin-menu="${escapeHtml(name)}">
           <input data-admin-name-index="${index}" value="${escapeHtml(name)}" aria-label="Admin ${index + 1}" />
           <button type="button" data-admin-menu="${escapeHtml(name)}">${counts[index]}</button>
         </div>
       `,
-    ),
+  );
+  const role = roleInfo(activeRole);
+  document.querySelector("#adminMenuTabs").innerHTML = role.key === "admin"
+    ? adminTabs.join("")
+    : [
+        `<button class="admin-menu-tab ${activeMenu === "ALL" ? "active" : ""}" data-admin-menu="ALL" type="button">
+          <strong>ອໍເດີ້ທັງໝົດ</strong><span>${orders.length}</span>
+        </button>`,
+        ...adminTabs,
     `<button class="admin-menu-tab ${activeMenu === "CATALOG" ? "active" : ""}" data-admin-menu="CATALOG" type="button">
       <strong>ສິນຄ້າ 500</strong><span>${catalogItems.length || 500}</span>
     </button>`,
-  ].join("");
+      ].join("");
 }
 
 function setAdminView(menu) {
   activeMenu = menu;
+  if (roleInfo(activeRole).key === "admin" && (activeMenu === "ALL" || activeMenu === "CATALOG")) {
+    activeMenu = settings.adminNames[0];
+  }
   const catalogMode = activeMenu === "CATALOG";
   document.querySelector("#ordersPanel").hidden = catalogMode;
   document.querySelector("#orderEditorPanel").hidden = catalogMode;
