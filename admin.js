@@ -65,10 +65,10 @@ const emptyProduct = () => ({
   freeGifts: [],
 });
 
-const emptyOrder = () => ({
+const emptyOrder = (assignedAdmin = settings.adminNames[0]) => ({
   code: "",
   depositStatus: "PENDING",
-  assignedAdmin: settings.adminNames[0],
+  assignedAdmin,
   customerName: "",
   phone: "",
   addressCf: "",
@@ -402,9 +402,18 @@ function activeOrder() {
   return orders.find((order) => order.code === activeCode) || null;
 }
 
+function activeAdminName() {
+  return settings.adminNames.includes(activeMenu) ? activeMenu : settings.adminNames[0];
+}
+
+function scopedOrders() {
+  if (activeMenu === "ALL" || activeMenu === "CATALOG") return orders;
+  return orders.filter((order) => order.assignedAdmin === activeMenu);
+}
+
 function filteredOrders() {
   const search = filters.search.trim().toLowerCase();
-  return orders.filter((order) => {
+  return scopedOrders().filter((order) => {
     const matchesSearch =
       !search ||
       [order.code, order.customerName, order.phone, order.addressCf]
@@ -412,8 +421,7 @@ function filteredOrders() {
         .some((value) => String(value).toLowerCase().includes(search));
     const matchesStatus = filters.status === "ALL" || order.productionStatus === filters.status;
     const matchesDeposit = filters.deposit === "ALL" || order.depositStatus === filters.deposit;
-    const matchesAdmin = activeMenu === "ALL" || activeMenu === "CATALOG" || order.assignedAdmin === activeMenu;
-    return matchesSearch && matchesStatus && matchesDeposit && matchesAdmin;
+    return matchesSearch && matchesStatus && matchesDeposit;
   });
 }
 
@@ -460,11 +468,12 @@ function setAdminView(menu) {
 }
 
 function renderStats() {
-  const totalOrders = orders.length;
-  const activeOrders = orders.filter((order) => order.productionStatus !== "COMPLETED").length;
-  const completedOrders = orders.filter((order) => order.productionStatus === "COMPLETED").length;
-  const pendingPayments = orders.filter((order) => order.depositStatus === "PENDING").length;
-  const totalValue = orders.reduce((sum, order) => sum + totalFor(order), 0);
+  const statOrders = scopedOrders();
+  const totalOrders = statOrders.length;
+  const activeOrders = statOrders.filter((order) => order.productionStatus !== "COMPLETED").length;
+  const completedOrders = statOrders.filter((order) => order.productionStatus === "COMPLETED").length;
+  const pendingPayments = statOrders.filter((order) => order.depositStatus === "PENDING").length;
+  const totalValue = statOrders.reduce((sum, order) => sum + totalFor(order), 0);
   const canSeeValue = roleInfo(activeRole).canSeeValue;
 
   const stats = [
@@ -551,6 +560,10 @@ function renderOrdersList() {
   const visibleOrders = filteredOrders();
   renderStats();
   renderAdminMenu();
+
+  if (!visibleOrders.some((order) => order.code === activeCode)) {
+    fillForm(visibleOrders[0] || emptyOrder(activeAdminName()));
+  }
 
   if (!visibleOrders.length) {
     list.innerHTML = `<p class="empty-state">ບໍ່ພົບບິນທີ່ກົງກັບ filter</p>`;
@@ -845,11 +858,6 @@ async function loadOrders() {
   orders = result.data;
   renderRoleMenuSummary();
   renderOrdersList();
-  if (!activeCode && orders[0]) fillForm(orders[0]);
-  if (activeCode) {
-    const selectedOrder = activeOrder();
-    if (selectedOrder) fillForm(selectedOrder);
-  }
   setAdminNotice("ດຶງຂໍ້ມູນສຳເລັດ", "success");
 }
 
@@ -1138,7 +1146,7 @@ function setupAdmin() {
   document.querySelector("#statusFilterSelect").innerHTML += productionSteps
     .map((step) => `<option value="${step.key}">${step.label}</option>`)
     .join("");
-  document.querySelector("#newOrderButton").addEventListener("click", () => fillForm(emptyOrder()));
+  document.querySelector("#newOrderButton").addEventListener("click", () => fillForm(emptyOrder(activeAdminName())));
   document.querySelector("#refreshOrdersButton").addEventListener("click", () => loadOrders());
   document.querySelector("#orderForm").addEventListener("submit", saveOrder);
   document.querySelector("#updateWorkflowButton").addEventListener("click", updateWorkflowStatus);

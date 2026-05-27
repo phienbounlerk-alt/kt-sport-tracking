@@ -121,7 +121,6 @@ function renderOrder(order) {
     <dt>ທີ່ຢູ່ຈັດສົ່ງ:</dt><dd>${escapeHtml(order.addressCf)}</dd>
     <dt>ລວມຍອດ:</dt><dd>${currency(total)}</dd>
   `;
-  document.querySelector("#trackingUrlInput").value = trackingUrl(order.code);
   document.querySelector("#quickSummary").innerHTML = `
     <div><span>ສະຖານະ</span><strong>${escapeHtml(statusLabel(order.productionStatus))}</strong></div>
     <div><span>ສິນຄ້າ</span><strong>${order.products.length}</strong></div>
@@ -213,33 +212,19 @@ async function loadOrder(code) {
 }
 
 async function copyPublicLink() {
-  const link = document.querySelector("#trackingUrlInput").value;
+  const link = trackingUrl(activeOrder?.code || "");
   try {
     await navigator.clipboard.writeText(link);
     setPublicNotice("Copy tracking link ສຳເລັດ", "success");
   } catch {
-    document.querySelector("#trackingUrlInput").select();
     setPublicNotice("ກົດ Ctrl/Cmd+C ເພື່ອ copy link", "muted");
   }
 }
 
 function setup() {
-  document.querySelector("#searchForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const code = document.querySelector("#orderCodeInput").value.trim().toUpperCase();
-    try {
-      await loadOrder(code);
-    } catch {
-      setPublicNotice("ບໍ່ພົບເລກບິນນີ້", "error");
-    }
-  });
-
-  document.querySelector("#copyPublicLinkButton").addEventListener("click", copyPublicLink);
   const queryCode = new URLSearchParams(window.location.search).get("code");
-  if (queryCode) {
-    document.querySelector("#orderCodeInput").value = queryCode.toUpperCase();
-  }
-  loadOrder(document.querySelector("#orderCodeInput").value.trim().toUpperCase()).catch(() => {
+  const code = (queryCode || "J261038").trim().toUpperCase();
+  loadOrder(code).catch(() => {
     setPublicNotice("ດຶງຂໍ້ມູນບໍ່ໄດ້ ກວດເລກບິນອີກຄັ້ງ", "error");
   });
 }
