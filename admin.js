@@ -18,9 +18,9 @@ const productionSteps = [
 const roleDefinitions = [
   { key: "president", title: "ປະທານ", name: "KHOTA", canSeeValue: true, canUseTouchId: true, canAccessPeople: true },
   { key: "vice", title: "ຮອງປະທານ", name: "KHAMTAN", canSeeValue: true, canUseTouchId: true, canAccessPeople: true },
-  { key: "manager", title: "ຜູ້ຈັດການ", name: "JALOUN", canSeeValue: false, canUseTouchId: false },
-  { key: "accounting", title: "ບັນຊີ", name: "Accounting", canSeeValue: true, canUseTouchId: false },
-  { key: "engineer", title: "Software Engineer", name: "Engineer", canSeeValue: true, canUseTouchId: true, engineerOnly: true },
+  { key: "manager", title: "ຜູ້ຈັດການ", name: "JALOUN", canSeeValue: false, canUseTouchId: true },
+  { key: "accounting", title: "ບັນຊີ", name: "Accounting", canSeeValue: true, canUseTouchId: true },
+  { key: "engineer", title: "Software Engineer", name: "Engineer", canSeeValue: true, canUseTouchId: true, engineerOnly: true, noPasscode: true },
   { key: "admin", title: "Admin", name: "No password", canSeeValue: true, noPasscode: true },
 ];
 
@@ -43,6 +43,8 @@ let activeMenu = "ALL";
 let selectedRole = "president";
 let activeRole = null;
 let lastRoleClick = { key: "", at: 0 };
+let lastAdminClick = { name: "", at: 0 };
+let executiveUnlocked = false;
 let catalogItems = [];
 let catalogSearch = "";
 let filters = {
@@ -187,6 +189,9 @@ function refreshRoleLogin() {
 function setRoleWorkspace(roleKey) {
   activeRole = roleKey;
   const role = roleInfo(roleKey);
+  if (role.canAccessPeople) {
+    executiveUnlocked = true;
+  }
   if (role.key === "admin" && (activeMenu === "ALL" || activeMenu === "CATALOG")) {
     activeMenu = settings.adminNames[0];
   }
@@ -202,10 +207,11 @@ function setRoleWorkspace(roleKey) {
 }
 
 function playRoleAnimation(roleKey) {
-  const role = roleInfo(roleKey);
+  const role = roleDefinitions.find((item) => item.key === roleKey);
+  const label = role ? roleDisplay(role) : roleKey;
   const transition = document.querySelector("#roleTransition");
   document.querySelector("#roleTransitionTitle").textContent = "KT SPORT";
-  document.querySelector("#roleTransitionSubtitle").textContent = `ກຳລັງເຂົ້າ ${roleDisplay(role)}`;
+  document.querySelector("#roleTransitionSubtitle").textContent = `ກຳລັງເຂົ້າ ${label}`;
   transition.hidden = false;
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -219,9 +225,11 @@ async function beginRoleEntry(roleKey) {
   selectedRole = roleKey;
   refreshRoleLogin();
   await playRoleAnimation(roleKey);
-  if (roleInfo(roleKey).noPasscode) {
+  const role = roleInfo(roleKey);
+  const canExecutiveBypass = executiveUnlocked && (role.key === "manager" || role.key === "accounting");
+  if (role.noPasscode || canExecutiveBypass) {
     setRoleWorkspace(roleKey);
-    setAdminNotice("ເຂົ້າເມນູ Admin ສຳເລັດ", "success");
+    setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(role)} ສຳເລັດ`, "success");
     return;
   }
   document.querySelector("#rolePrompt").hidden = false;
@@ -238,9 +246,11 @@ function lockRoleWorkspace() {
 }
 
 function unlockSelectedRole(passcode) {
-  if (roleInfo(selectedRole).noPasscode) {
+  const role = roleInfo(selectedRole);
+  const canExecutiveBypass = executiveUnlocked && (role.key === "manager" || role.key === "accounting");
+  if (role.noPasscode || canExecutiveBypass) {
     setRoleWorkspace(selectedRole);
-    setAdminNotice("ເຂົ້າເມນູ Admin ສຳເລັດ", "success");
+    setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(role)} ສຳເລັດ`, "success");
     return true;
   }
   if (String(passcode || "") !== String(rolePasscodes()[selectedRole] || "")) {
@@ -251,6 +261,12 @@ function unlockSelectedRole(passcode) {
   setRoleWorkspace(selectedRole);
   setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(roleInfo(selectedRole))} ສຳເລັດ`, "success");
   return true;
+}
+
+async function beginAdminEntry(adminName) {
+  await playRoleAnimation(adminName);
+  setAdminView(adminName);
+  setAdminNotice(`ເຂົ້າ ${adminName}: ຈັດການອໍເດີ້ ແລະ copy tracking link ໄດ້ແລ້ວ`, "success");
 }
 
 function base64UrlToBuffer(value) {
@@ -1120,8 +1136,18 @@ function setupAdmin() {
   });
   document.querySelector("#adminMenuTabs").addEventListener("click", (event) => {
     const menuButton = event.target.closest("[data-admin-menu]");
-    if (!menuButton || event.target.matches("[data-admin-name-index]")) return;
-    setAdminView(menuButton.dataset.adminMenu);
+    if (!menuButton) return;
+    const menu = menuButton.dataset.adminMenu;
+    if (roleInfo(activeRole).key === "admin") {
+      event.preventDefault();
+      const now = Date.now();
+      const isSecondClick = lastAdminClick.name === menu && now - lastAdminClick.at < 700;
+      lastAdminClick = { name: menu, at: now };
+      if (isSecondClick) beginAdminEntry(menu);
+      return;
+    }
+    if (event.target.matches("[data-admin-name-index]")) return;
+    setAdminView(menu);
   });
   document.querySelector("#adminMenuTabs").addEventListener("change", (event) => {
     const input = event.target.closest("[data-admin-name-index]");
