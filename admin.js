@@ -42,6 +42,7 @@ let settings = {
 let activeMenu = "ALL";
 let selectedRole = "president";
 let activeRole = null;
+let lastRoleClick = { key: "", at: 0 };
 let catalogItems = [];
 let catalogSearch = "";
 let filters = {
@@ -159,6 +160,7 @@ function rolePasscodes() {
 
 function renderRoleMenu() {
   document.querySelector("#roleMenuTabs").innerHTML = roleDefinitions
+    .filter((role) => !role.engineerOnly)
     .map(
       (role, index) => `
         <button class="role-menu-card ${selectedRole === role.key ? "active" : ""}" data-role-key="${role.key}" type="button">
@@ -175,7 +177,7 @@ function refreshRoleLogin() {
   const role = roleInfo(selectedRole);
   document.querySelector("#roleLoginTitle").textContent = role.noPasscode
     ? `${roleDisplay(role)} - ບໍ່ຕ້ອງໃສ່ລະຫັດ`
-    : `${roleDisplay(role)} - ໃສ່ລະຫັດເພື່ອເຂົ້າ`;
+    : `${roleDisplay(role)} - ໃສ່ລະຫັດ`;
   document.querySelector("#rolePasscodeInput").value = "";
   document.querySelector("#rolePasscodeInput").disabled = Boolean(role.noPasscode);
   document.querySelector("#touchIdButton").hidden = !role.canUseTouchId || !window.PublicKeyCredential;
@@ -199,7 +201,7 @@ function setRoleWorkspace(roleKey) {
   renderOrdersList();
 }
 
-function animateIntoRole(roleKey) {
+function playRoleAnimation(roleKey) {
   const role = roleInfo(roleKey);
   const transition = document.querySelector("#roleTransition");
   document.querySelector("#roleTransitionTitle").textContent = "KT SPORT";
@@ -208,10 +210,22 @@ function animateIntoRole(roleKey) {
   return new Promise((resolve) => {
     setTimeout(() => {
       transition.hidden = true;
-      setRoleWorkspace(roleKey);
       resolve();
     }, 850);
   });
+}
+
+async function beginRoleEntry(roleKey) {
+  selectedRole = roleKey;
+  refreshRoleLogin();
+  await playRoleAnimation(roleKey);
+  if (roleInfo(roleKey).noPasscode) {
+    setRoleWorkspace(roleKey);
+    setAdminNotice("ເຂົ້າເມນູ Admin ສຳເລັດ", "success");
+    return;
+  }
+  document.querySelector("#rolePrompt").hidden = false;
+  document.querySelector("#rolePasscodeInput").focus();
 }
 
 function lockRoleWorkspace() {
@@ -219,12 +233,13 @@ function lockRoleWorkspace() {
   localStorage.removeItem("ktActiveRole");
   document.querySelector("#adminWorkspace").hidden = true;
   document.querySelector("#roleAccessPanel").hidden = false;
+  document.querySelector("#rolePrompt").hidden = true;
   refreshRoleLogin();
 }
 
 function unlockSelectedRole(passcode) {
   if (roleInfo(selectedRole).noPasscode) {
-    animateIntoRole(selectedRole);
+    setRoleWorkspace(selectedRole);
     setAdminNotice("ເຂົ້າເມນູ Admin ສຳເລັດ", "success");
     return true;
   }
@@ -232,7 +247,8 @@ function unlockSelectedRole(passcode) {
     setRoleNotice("ລະຫັດບໍ່ຖືກ", "error");
     return false;
   }
-  animateIntoRole(selectedRole);
+  document.querySelector("#rolePrompt").hidden = true;
+  setRoleWorkspace(selectedRole);
   setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(roleInfo(selectedRole))} ສຳເລັດ`, "success");
   return true;
 }
@@ -305,7 +321,8 @@ async function unlockWithTouchId() {
         timeout: 60000,
       },
     });
-    await animateIntoRole(selectedRole);
+    document.querySelector("#rolePrompt").hidden = true;
+    setRoleWorkspace(selectedRole);
     setAdminNotice(`ເຂົ້າ ${roleDisplay(role)} ດ້ວຍ Touch ID ສຳເລັດ`, "success");
   } catch {
     setRoleNotice("Touch ID ບໍ່ສຳເລັດ", "error");
@@ -1056,15 +1073,24 @@ function setupAdmin() {
   document.querySelector("#roleMenuTabs").addEventListener("click", (event) => {
     const button = event.target.closest("[data-role-key]");
     if (!button) return;
+    const roleKey = button.dataset.roleKey;
+    const now = Date.now();
+    const isSecondClick = lastRoleClick.key === roleKey && now - lastRoleClick.at < 700;
     selectedRole = button.dataset.roleKey;
     refreshRoleLogin();
-    setRoleNotice("ໃສ່ລະຫັດຂອງເມນູນີ້ເພື່ອເຂົ້າ", "muted");
+    lastRoleClick = { key: roleKey, at: now };
+    if (isSecondClick) beginRoleEntry(roleKey);
   });
   document.querySelector("#roleLoginForm").addEventListener("submit", (event) => {
     event.preventDefault();
     unlockSelectedRole(document.querySelector("#rolePasscodeInput").value);
   });
   document.querySelector("#touchIdButton").addEventListener("click", unlockWithTouchId);
+  document.querySelector("#cancelRolePromptButton").addEventListener("click", () => {
+    document.querySelector("#rolePrompt").hidden = true;
+    document.querySelector("#rolePasscodeInput").value = "";
+  });
+  document.querySelector("#engineerAccessButton").addEventListener("click", () => beginRoleEntry("engineer"));
   document.querySelector("#registerTouchIdButton").addEventListener("click", () => {
     registerTouchId().catch(() => setAdminNotice("ຕັ້ງ Touch ID ບໍ່ສຳເລັດ", "error"));
   });

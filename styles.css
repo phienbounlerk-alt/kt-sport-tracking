@@ -570,11 +570,14 @@ textarea {
 }
 
 .role-access-panel {
+  position: relative;
   display: grid;
   gap: 16px;
+  padding-bottom: 70px;
 }
 
-.role-transition {
+.role-transition,
+.role-prompt {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -585,10 +588,14 @@ textarea {
   backdrop-filter: blur(6px);
 }
 
-.role-transition-card {
+.role-prompt {
+  z-index: 51;
+}
+
+.role-transition-card,
+.role-prompt-card {
   width: min(100%, 440px);
   display: grid;
-  justify-items: center;
   gap: 12px;
   padding: 34px 30px;
   border: 1px solid var(--line);
@@ -596,6 +603,37 @@ textarea {
   background: var(--paper);
   box-shadow: 0 24px 80px rgba(28, 38, 48, 0.16);
   animation: roleCardIn 0.32s ease both;
+}
+
+.role-transition-card {
+  justify-items: center;
+}
+
+.role-prompt-card label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.role-prompt-card input {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: white;
+  color: var(--ink);
+}
+
+.role-prompt-card button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: var(--main);
+  color: white;
+  cursor: pointer;
+  font-weight: 800;
 }
 
 .role-transition-card .brand-mark {
@@ -653,8 +691,26 @@ textarea {
 
 .role-menu-tabs {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
+}
+
+.engineer-access-button {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 16px;
+  background: #eef3f5;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.engineer-access-button:hover {
+  background: #e4edf1;
 }
 
 .role-menu-card {

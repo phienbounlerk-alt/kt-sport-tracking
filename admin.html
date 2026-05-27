@@ -33,18 +33,7 @@
           <h1>ເລືອກເມນູບໍລິຫານ</h1>
         </div>
         <div id="roleMenuTabs" class="role-menu-tabs"></div>
-        <form id="roleLoginForm" class="role-login-form">
-          <strong id="roleLoginTitle">ເລືອກເມນູກ່ອນ</strong>
-          <label>
-            ລະຫັດເຂົ້າເມນູ (Admin ບໍ່ຕ້ອງໃສ່)
-            <input id="rolePasscodeInput" type="password" autocomplete="current-password" />
-          </label>
-          <div class="role-login-actions">
-            <button id="roleLoginButton" type="submit">ເຂົ້າເມນູ</button>
-            <button id="touchIdButton" type="button" hidden>Touch ID</button>
-          </div>
-          <p id="roleLoginNotice" data-tone="muted">ແຕ່ລະເມນູມີລະຫັດແຍກກັນ.</p>
-        </form>
+        <button id="engineerAccessButton" class="engineer-access-button" type="button">Software Engineer</button>
       </section>
 
       <section id="roleTransition" class="role-transition" hidden>
@@ -54,6 +43,22 @@
           <span id="roleTransitionSubtitle">ກຳລັງເຂົ້າເມນູ...</span>
           <div class="role-transition-bar"><i></i></div>
         </div>
+      </section>
+
+      <section id="rolePrompt" class="role-prompt" hidden>
+        <form id="roleLoginForm" class="role-prompt-card">
+          <strong id="roleLoginTitle">ໃສ່ລະຫັດ</strong>
+          <label>
+            ລະຫັດ
+            <input id="rolePasscodeInput" type="password" autocomplete="current-password" />
+          </label>
+          <div class="role-login-actions">
+            <button id="roleLoginButton" type="submit">ເຂົ້າເມນູ</button>
+            <button id="touchIdButton" type="button" hidden>Touch ID</button>
+            <button id="cancelRolePromptButton" class="ghost-button" type="button">ຍົກເລີກ</button>
+          </div>
+          <p id="roleLoginNotice" data-tone="muted">ໃສ່ລະຫັດຂອງເມນູນີ້.</p>
+        </form>
       </section>
 
       <section id="adminWorkspace" hidden>
