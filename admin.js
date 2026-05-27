@@ -21,7 +21,7 @@ const roleDefinitions = [
   { key: "manager", title: "ຜູ້ຈັດການ", name: "JALOUN", canSeeValue: false, canUseTouchId: true },
   { key: "accounting", title: "ບັນຊີ", name: "Accounting", canSeeValue: true, canUseTouchId: true },
   { key: "engineer", title: "Software Engineer", name: "Engineer", canSeeValue: true, canUseTouchId: true, engineerOnly: true, noPasscode: true },
-  { key: "admin", title: "Admin", name: "No password", canSeeValue: true, noPasscode: true },
+  { key: "admin", title: "Admin", name: "No password", canSeeValue: false, noPasscode: true },
 ];
 
 const defaultRolePasscodes = {
@@ -173,6 +173,7 @@ function renderRoleMenu() {
       `,
     )
     .join("");
+  renderRoleMenuSummary();
 }
 
 function refreshRoleLogin() {
@@ -227,6 +228,12 @@ async function beginRoleEntry(roleKey) {
   await playRoleAnimation(roleKey);
   const role = roleInfo(roleKey);
   const canExecutiveBypass = executiveUnlocked && (role.key === "manager" || role.key === "accounting");
+  if (role.key === "engineer") {
+    await runFaceScan();
+    setRoleWorkspace(roleKey);
+    setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(role)} ສຳເລັດ`, "success");
+    return;
+  }
   if (role.noPasscode || canExecutiveBypass) {
     setRoleWorkspace(roleKey);
     setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(role)} ສຳເລັດ`, "success");
@@ -266,7 +273,35 @@ function unlockSelectedRole(passcode) {
 async function beginAdminEntry(adminName) {
   await playRoleAnimation(adminName);
   setAdminView(adminName);
+  document.querySelector("#ordersPanel").scrollIntoView({ behavior: "smooth", block: "start" });
   setAdminNotice(`ເຂົ້າ ${adminName}: ຈັດການອໍເດີ້ ແລະ copy tracking link ໄດ້ແລ້ວ`, "success");
+}
+
+async function runFaceScan() {
+  const panel = document.querySelector("#faceScanPanel");
+  const video = document.querySelector("#faceScanVideo");
+  const notice = document.querySelector("#faceScanNotice");
+  let stream = null;
+  panel.hidden = false;
+  notice.textContent = "ກຳລັງສະແກນໜ້າ...";
+  try {
+    if (navigator.mediaDevices?.getUserMedia) {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      video.srcObject = stream;
+    } else {
+      notice.textContent = "ກຳລັງກວດແບບຈຳລອງ...";
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+    notice.textContent = "ສະແກນສຳເລັດ";
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  } catch {
+    notice.textContent = "ກຳລັງກວດແບບຈຳລອງ...";
+    await new Promise((resolve) => setTimeout(resolve, 900));
+  } finally {
+    if (stream) stream.getTracks().forEach((track) => track.stop());
+    video.srcObject = null;
+    panel.hidden = true;
+  }
 }
 
 function base64UrlToBuffer(value) {
@@ -441,10 +476,13 @@ function renderStats() {
       `,
     )
     .join("");
-  renderAdminBreakdown(canSeeValue);
+  const breakdown = document.querySelector("#adminRoleBreakdown");
+  const hideWorkspaceBreakdown = roleInfo(activeRole).key === "admin";
+  breakdown.hidden = hideWorkspaceBreakdown;
+  if (!hideWorkspaceBreakdown) renderAdminBreakdown(canSeeValue);
 }
 
-function renderAdminBreakdown(canSeeValue = roleInfo(activeRole).canSeeValue) {
+function adminBreakdownMarkup(canSeeValue = false) {
   const rows = settings.adminNames.map((name) => {
     const adminOrders = orders.filter((order) => order.assignedAdmin === name);
     const activeCount = adminOrders.filter((order) => order.productionStatus !== "COMPLETED").length;
@@ -454,7 +492,7 @@ function renderAdminBreakdown(canSeeValue = roleInfo(activeRole).canSeeValue) {
     return { name, total: adminOrders.length, activeCount, completedCount, pendingCount, value };
   });
 
-  document.querySelector("#adminRoleBreakdown").innerHTML = `
+  return `
     <div class="panel-title-row">
       <div>
         <p class="eyebrow">Admin Summary</p>
@@ -486,6 +524,16 @@ function renderAdminBreakdown(canSeeValue = roleInfo(activeRole).canSeeValue) {
         .join("")}
     </div>
   `;
+}
+
+function renderAdminBreakdown(canSeeValue = roleInfo(activeRole).canSeeValue) {
+  document.querySelector("#adminRoleBreakdown").innerHTML = adminBreakdownMarkup(canSeeValue);
+}
+
+function renderRoleMenuSummary() {
+  const summary = document.querySelector("#roleMenuSummary");
+  if (!summary) return;
+  summary.innerHTML = adminBreakdownMarkup(false);
 }
 
 function renderOrdersList() {
@@ -785,6 +833,7 @@ async function loadOrders() {
   if (!response.ok) throw new Error("LOAD_FAILED");
   const result = await response.json();
   orders = result.data;
+  renderRoleMenuSummary();
   renderOrdersList();
   if (!activeCode && orders[0]) fillForm(orders[0]);
   if (activeCode) {
