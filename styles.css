@@ -870,6 +870,12 @@ textarea {
   border-radius: 8px;
   background: #fbfcfd;
   text-align: center;
+  cursor: pointer;
+}
+
+.staff-card.active {
+  border-color: var(--main);
+  background: #fff0f0;
 }
 
 .staff-photo-picker {
@@ -886,6 +892,86 @@ textarea {
 .staff-card span {
   color: var(--muted);
   font-weight: 800;
+}
+
+.staff-card small {
+  color: var(--main-dark);
+  font-weight: 900;
+}
+
+.staff-workspace {
+  margin-top: 16px;
+}
+
+.staff-login-form,
+.staff-task-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.staff-login-form {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 0.6fr) auto;
+  align-items: end;
+}
+
+.staff-login-form input {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.staff-login-form button,
+.staff-task-panel button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: var(--main);
+  color: white;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.staff-task-list {
+  display: grid;
+  gap: 8px;
+}
+
+.staff-task-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.staff-task-item div {
+  display: grid;
+  gap: 3px;
+}
+
+.staff-task-item span,
+.staff-task-item small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.staff-task-item.done {
+  opacity: 0.68;
+}
+
+.staff-task-item button:disabled {
+  background: #d9e3e8;
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .role-login-form {
@@ -2119,7 +2205,9 @@ textarea {
   .catalog-layout,
   .catalog-admin-tools,
   .catalog-edit-row,
-  .catalog-edit-grid {
+  .catalog-edit-grid,
+  .staff-login-form,
+  .staff-task-item {
     grid-template-columns: 1fr;
   }
 

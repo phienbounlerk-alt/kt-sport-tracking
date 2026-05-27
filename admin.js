@@ -25,35 +25,49 @@ const roleDefinitions = [
 ];
 
 const staffMembers = [
-  ["Mr Khota XAIYASAN", "22/10/1996"],
-  ["Mr Khamtan Derndavong", "7/2/1995"],
-  ["Mr Jaloun Gnonkaseumsouk", "4/10/1995"],
-  ["Ms Keoludda Dengkhamxeun", "1/12/1996"],
-  ["Ms Bountham Nala", "3/4/1993"],
-  ["Ms Lamphaen Nala", "2/5/1998"],
-  ["Mr Khamthey Phimmalarth", "29/12/2000"],
-  ["Mr Phian", "10/2/2001"],
-  ["Mr Xokxai", "10/4/2004"],
-  ["Mr Jord", "17/5/2001"],
-  ["Ms Touktik", "14/6/1989"],
-  ["Mr Nickky", "12/5/2002"],
-  ["Ms Bungone", "10/6/2002"],
-  ["Mr Keoudone", "2/10/2000"],
-  ["Mr Xaiy", "5/6/1999"],
-  ["Ms Nuiy", "10/3/1999"],
-  ["Ms Namtarn", "9/1/2010"],
-  ["Ms Loy", "20/5/2009"],
-  ["Ms koukkik", "22/4/1999"],
-  ["Ms Nang", "2/1/2003"],
-  ["Ms Grand", "17/3/2010"],
-  ["Ms Phet", "2/11/2002"],
-  ["Ms Tieng", "10/2/1992"],
-  ["Mr Keng", "25/1/2000"],
-  ["Ms May Outsourcing Marketing", "ບໍ່ມີຂໍ້ມູນ"],
-  ["Mr SONG", "13/3/2000"],
-  ["Mr Louiy", "28/01/1997"],
-  ["MS Anong", "12/11/2000"],
+  { name: "Mr Khota XAIYASAN", birthDate: "22/10/1996", duties: ["ປະທານ"] },
+  { name: "Mr Khamtan Derndavong", birthDate: "7/2/1995", duties: ["ຮອງປະທານ"] },
+  { name: "Mr Jaloun Gnonkaseumsouk", birthDate: "4/10/1995", duties: ["ຜູ້ຈັດການ", "Sales", "ອອກແບບ"] },
+  { name: "Ms Keoludda Dengkhamxeun", birthDate: "1/12/1996", duties: ["ບັນຊີ"] },
+  { name: "Ms Bountham Nala", birthDate: "3/4/1993", duties: ["Sales"] },
+  { name: "Ms Lamphaen Nala", birthDate: "2/5/1998", duties: ["Sales"] },
+  { name: "Mr Khamthey Phimmalarth", birthDate: "29/12/2000", duties: ["ອອກແບບ"] },
+  { name: "Mr Phian", birthDate: "10/2/2001", duties: ["ຂຶ້ນແພັດເທິ້ນ"] },
+  { name: "Mr Xokxai", birthDate: "10/4/2004", duties: ["ຂຶ້ນແພັດເທິ້ນ"] },
+  { name: "Mr Jord", birthDate: "17/5/2001", duties: ["ພິມ"] },
+  { name: "Ms Touktik", birthDate: "14/6/1989", duties: ["QC ກ່ອນຫຍິບ"] },
+  { name: "Mr Nickky", birthDate: "12/5/2002", duties: ["ພິມ"] },
+  { name: "Ms Bungone", birthDate: "10/6/2002", duties: ["ຂຶ້ນແພັດເທິ້ນ"] },
+  { name: "Mr Keoudone", birthDate: "2/10/2000", duties: ["ຂົນສົ່ງ"] },
+  { name: "Mr Xaiy", birthDate: "5/6/1999", duties: ["ຂົນສົ່ງ"] },
+  { name: "Ms Nuiy", birthDate: "10/3/1999", duties: ["ຍິບ"] },
+  { name: "Ms Namtarn", birthDate: "9/1/2010", duties: ["ຕັດ"] },
+  { name: "Ms Loy", birthDate: "20/5/2009", duties: ["ຍິບ"] },
+  { name: "Ms koukkik", birthDate: "22/4/1999", duties: ["ຕັດ"] },
+  { name: "Ms Nang", birthDate: "2/1/2003", duties: ["QC ກ່ອນຫຍິບ"] },
+  { name: "Ms Grand", birthDate: "17/3/2010", duties: ["ຍັງບໍ່ມີຂໍ້ມູນ"] },
+  { name: "Ms Phet", birthDate: "2/11/2002", duties: ["ຍິບ"] },
+  { name: "Ms Tieng", birthDate: "10/2/1992", duties: ["ຍິບ"] },
+  { name: "Mr Keng", birthDate: "25/1/2000", duties: ["Marketing"] },
+  { name: "Ms May Outsourcing Marketing", birthDate: "ບໍ່ມີຂໍ້ມູນ", duties: ["Marketing"] },
+  { name: "Mr SONG", birthDate: "13/3/2000", duties: ["ລີດລົງຜ້າ"] },
+  { name: "Mr Louiy", birthDate: "28/01/1997", duties: ["ລີດລົງຜ້າ"] },
+  { name: "MS Anong", birthDate: "12/11/2000", duties: ["ຍິບ"] },
+  { name: "Mr Jo", birthDate: "ຍັງບໍ່ມີຂໍ້ມູນ", duties: ["ລີດລົງຜ້າ"] },
+  { name: "Ms Mee", birthDate: "31/3/2004", duties: ["Sales"] },
 ];
+
+const dutyStatusMap = {
+  Sales: "PRODUCTION_ORDER",
+  "ອອກແບບ": "DESIGN",
+  "ຂຶ້ນແພັດເທິ້ນ": "PATTERN",
+  "ພິມ": "PRINTING",
+  "ລີດລົງຜ້າ": "HEAT_TRANSFER",
+  "ຕັດ": "CUTTING",
+  "QC ກ່ອນຫຍິບ": "QC_BEFORE_SEWING",
+  "ຍິບ": "SEWING",
+  "ຂົນສົ່ງ": "DELIVERY",
+};
 
 const defaultRolePasscodes = {
   president: "khota2026",
@@ -71,6 +85,7 @@ let settings = {
   rolePasscodes: { ...defaultRolePasscodes },
   rolePhotos: {},
   staffPhotos: {},
+  staffPasscodes: {},
 };
 let activeMenu = "ALL";
 let selectedRole = "president";
@@ -80,6 +95,8 @@ let lastAdminClick = { name: "", at: 0 };
 let executiveUnlocked = false;
 let engineerUnlocked = false;
 let staffPanelOpen = false;
+let activeStaffIndex = null;
+let unlockedStaffIndex = null;
 let catalogItems = [];
 let catalogSearch = "";
 let filters = {
@@ -195,6 +212,18 @@ function rolePasscodes() {
   return { ...defaultRolePasscodes, ...(settings.rolePasscodes || {}) };
 }
 
+function staffPasscode(index) {
+  return String(settings.staffPasscodes?.[index] || "1234");
+}
+
+function staffStatuses(staff) {
+  return [...new Set((staff.duties || []).map((duty) => dutyStatusMap[duty]).filter(Boolean))];
+}
+
+function staffDutyForStatus(staff, status) {
+  return (staff.duties || []).find((duty) => dutyStatusMap[duty] === status) || statusLabel(status);
+}
+
 function renderRoleMenu() {
   const visibleRoles = roleDefinitions.filter((role) => !role.engineerOnly);
   document.querySelector("#roleMenuTabs").innerHTML = [
@@ -249,21 +278,100 @@ function renderStaffPanel() {
     <div class="staff-grid">
       ${staffMembers
         .map(
-          ([name, birthDate], index) => `
-            <article class="staff-card">
+          (staff, index) => `
+            <article class="staff-card ${activeStaffIndex === index ? "active" : ""}" data-staff-index="${index}">
               <div class="staff-photo-picker">
-                <img src="${escapeHtml(settings.staffPhotos?.[index] || "./assets/kt-sport-logo.jpg")}" alt="${escapeHtml(name)}" />
+                <img src="${escapeHtml(settings.staffPhotos?.[index] || "./assets/kt-sport-logo.jpg")}" alt="${escapeHtml(staff.name)}" />
                 <label class="photo-upload-button" title="Upload photo">
                   +
                   <input data-staff-photo-index="${index}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
                 </label>
               </div>
-              <strong>${escapeHtml(name.toUpperCase())}</strong>
-              <span>${escapeHtml(birthDate)}</span>
+              <strong>${escapeHtml(staff.name.toUpperCase())}</strong>
+              <span>${escapeHtml(staff.birthDate)}</span>
+              <small>${escapeHtml(staff.duties.join(" / "))}</small>
             </article>
           `,
         )
         .join("")}
+    </div>
+    <div id="staffWorkspace" class="staff-workspace">${renderStaffWorkspace()}</div>
+  `;
+}
+
+function renderStaffWorkspace() {
+  if (activeStaffIndex === null) {
+    return `<p class="empty-state">ກົດຊື່ພະນັກງານເພື່ອເຂົ້າໜ້າວຽກຂອງຕົນ.</p>`;
+  }
+  const staff = staffMembers[activeStaffIndex];
+  if (!staff) return "";
+  if (unlockedStaffIndex !== activeStaffIndex) {
+    return `
+      <form class="staff-login-form" data-staff-login-form>
+        <div>
+          <p class="eyebrow">Staff Login</p>
+          <h3>${escapeHtml(staff.name.toUpperCase())}</h3>
+          <span>${escapeHtml(staff.duties.join(" / "))}</span>
+        </div>
+        <input id="staffPasscodeInput" type="password" placeholder="ລະຫັດພະນັກງານ" autocomplete="current-password" />
+        <button type="submit">ເຂົ້າເມນູ</button>
+        <p id="staffLoginNotice" data-tone="muted">ລະຫັດເລີ່ມຕົ້ນ 1234.</p>
+      </form>
+    `;
+  }
+  return staffTaskMarkup(staff, activeStaffIndex);
+}
+
+function staffTaskMarkup(staff, staffIndex) {
+  const statuses = staffStatuses(staff);
+  if (!statuses.length) {
+    return `
+      <div class="staff-task-panel">
+        <h3>${escapeHtml(staff.name.toUpperCase())}</h3>
+        <p class="empty-state">ໜ້າທີ່ນີ້ຍັງບໍ່ມີຂັ້ນຕອນໃຫ້ກົດຢືນຢັນ.</p>
+      </div>
+    `;
+  }
+  const rows = orders
+    .filter((order) => order.productionStatus !== "COMPLETED")
+    .flatMap((order) =>
+      statuses.map((status) => {
+        const done = (order.productionHistory || []).some((item) => item.status === status);
+        return { order, status, done };
+      }),
+    );
+  return `
+    <div class="staff-task-panel">
+      <div class="panel-title-row">
+        <div>
+          <p class="eyebrow">Staff Tasks</p>
+          <h3>${escapeHtml(staff.name.toUpperCase())}</h3>
+          <span>${escapeHtml(staff.duties.join(" / "))}</span>
+        </div>
+        <button type="button" data-staff-lock>ອອກ</button>
+      </div>
+      <div class="staff-task-list">
+        ${
+          rows.length
+            ? rows
+                .map(
+                  ({ order, status, done }) => `
+                    <article class="staff-task-item ${done ? "done" : ""}">
+                      <div>
+                        <strong>${escapeHtml(order.code)}</strong>
+                        <span>${escapeHtml(order.customerName || "ບໍ່ລະບຸຊື່")} · ${escapeHtml(statusLabel(order.productionStatus))}</span>
+                        <small>${escapeHtml(staffDutyForStatus(staff, status))} (${escapeHtml(statusLabel(status))})</small>
+                      </div>
+                      <button type="button" data-staff-confirm="${staffIndex}" data-order-code="${escapeHtml(order.code)}" data-status="${escapeHtml(status)}" ${done ? "disabled" : ""}>
+                        ${done ? "ຢືນຢັນແລ້ວ" : `ຢືນຢັນ ${escapeHtml(staffDutyForStatus(staff, status))}`}
+                      </button>
+                    </article>
+                  `,
+                )
+                .join("")
+            : `<p class="empty-state">ຍັງບໍ່ມີບິນທີ່ຕ້ອງກົດ.</p>`
+        }
+      </div>
     </div>
   `;
 }
@@ -960,6 +1068,7 @@ async function loadSettings() {
     rolePasscodes: { ...defaultRolePasscodes, ...(result.data.rolePasscodes || {}) },
     rolePhotos: result.data.rolePhotos || {},
     staffPhotos: result.data.staffPhotos || {},
+    staffPasscodes: result.data.staffPasscodes || {},
   };
   renderAssignedAdminSelect(settings.adminNames[0]);
   renderAdminMenu();
@@ -986,6 +1095,7 @@ async function saveSettings() {
     rolePasscodes: { ...defaultRolePasscodes, ...(result.data.rolePasscodes || {}) },
     rolePhotos: result.data.rolePhotos || {},
     staffPhotos: result.data.staffPhotos || {},
+    staffPasscodes: result.data.staffPasscodes || {},
   };
   if (activeMenu !== "CATALOG" && activeMenu !== "ALL" && !settings.adminNames.includes(activeMenu)) {
     activeMenu = settings.adminNames[0];
@@ -1215,6 +1325,30 @@ async function updateWorkflowStatus() {
   setAdminNotice(`ອັບເດດ status ເປັນ ${statusLabel(status)} ແລ້ວ`, "success");
 }
 
+async function confirmStaffTask(staffIndex, code, status) {
+  const staff = staffMembers[staffIndex];
+  if (!staff) return;
+  const duty = staffDutyForStatus(staff, status);
+  setRoleNotice(`ກຳລັງຢືນຢັນ ${duty}...`, "muted");
+  const response = await fetch(`/api/orders/${encodeURIComponent(code)}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      status,
+      note: `ຢືນຢັນໂດຍ ${staff.name} (${duty})`,
+      images: [],
+    }),
+  });
+  if (!response.ok) {
+    setRoleNotice("ຢືນຢັນບໍ່ສຳເລັດ", "error");
+    return;
+  }
+  const result = await response.json();
+  orders = orders.map((order) => (order.code === result.data.code ? result.data : order));
+  renderStaffPanel();
+  setRoleNotice(`ຢືນຢັນ ${duty} ສຳເລັດ`, "success");
+}
+
 async function copyTrackingLink() {
   if (!activeCode) return;
   const url = trackingUrl(activeCode);
@@ -1288,6 +1422,44 @@ function setupAdmin() {
     } finally {
       event.target.value = "";
     }
+  });
+  document.querySelector("#staffPanel").addEventListener("click", (event) => {
+    if (event.target.matches("input[type='file']") || event.target.closest(".photo-upload-button")) return;
+    const lockButton = event.target.closest("[data-staff-lock]");
+    if (lockButton) {
+      unlockedStaffIndex = null;
+      renderStaffPanel();
+      return;
+    }
+    const confirmButton = event.target.closest("[data-staff-confirm]");
+    if (confirmButton) {
+      confirmStaffTask(
+        Number(confirmButton.dataset.staffConfirm),
+        confirmButton.dataset.orderCode,
+        confirmButton.dataset.status,
+      );
+      return;
+    }
+    const card = event.target.closest("[data-staff-index]");
+    if (!card) return;
+    activeStaffIndex = Number(card.dataset.staffIndex);
+    if (unlockedStaffIndex !== activeStaffIndex) unlockedStaffIndex = null;
+    renderStaffPanel();
+    setTimeout(() => document.querySelector("#staffPasscodeInput")?.focus(), 0);
+  });
+  document.querySelector("#staffPanel").addEventListener("submit", (event) => {
+    const form = event.target.closest("[data-staff-login-form]");
+    if (!form) return;
+    event.preventDefault();
+    const input = document.querySelector("#staffPasscodeInput");
+    if (String(input.value || "") !== staffPasscode(activeStaffIndex)) {
+      document.querySelector("#staffLoginNotice").textContent = "ລະຫັດບໍ່ຖືກ";
+      document.querySelector("#staffLoginNotice").dataset.tone = "error";
+      return;
+    }
+    unlockedStaffIndex = activeStaffIndex;
+    renderStaffPanel();
+    setRoleNotice(`ເຂົ້າໜ້າພະນັກງານສຳເລັດ`, "success");
   });
   document.querySelector("#roleLoginForm").addEventListener("submit", (event) => {
     event.preventDefault();

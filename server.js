@@ -213,11 +213,13 @@ function normalizeSettings(settings = {}) {
   const rolePasscodes = settings.rolePasscodes && typeof settings.rolePasscodes === "object" ? settings.rolePasscodes : {};
   const rolePhotos = settings.rolePhotos && typeof settings.rolePhotos === "object" ? settings.rolePhotos : {};
   const staffPhotos = settings.staffPhotos && typeof settings.staffPhotos === "object" ? settings.staffPhotos : {};
+  const staffPasscodes = settings.staffPasscodes && typeof settings.staffPasscodes === "object" ? settings.staffPasscodes : {};
   return {
     adminNames: Array.from({ length: 10 }, (_, index) => normalizeAdminName(names[index], index)),
     shopPhone: String(settings.shopPhone || "8562077728239").replace(/\D/g, "") || "8562077728239",
     rolePhotos,
     staffPhotos,
+    staffPasscodes,
     rolePasscodes: {
       president: String(rolePasscodes.president || "khota2026"),
       vice: String(rolePasscodes.vice || "khamtan2026"),
