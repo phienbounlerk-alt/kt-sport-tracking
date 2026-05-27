@@ -533,6 +533,10 @@ function renderCatalogEditor() {
             <label>MOQ<input data-catalog-field="moq" type="number" min="1" value="${item.moq || 1}" /></label>
             <label>ໄຊ້<input data-catalog-field="size" value="${escapeHtml(item.size)}" /></label>
             <label class="full-span">ຮູບ URL<input data-catalog-field="image" value="${escapeHtml(item.image)}" /></label>
+            <label class="full-span catalog-upload-label">
+              ປ່ຽນຮູບສິນຄ້າ
+              <input data-catalog-upload="${escapeHtml(item.id)}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+            </label>
             <label class="catalog-visible"><input data-catalog-field="visible" type="checkbox" ${item.visible !== false ? "checked" : ""} /> ສະແດງໃນ shop</label>
             <button type="button" data-remove-catalog="${escapeHtml(item.id)}">ລົບ</button>
           </div>
@@ -560,6 +564,42 @@ function syncCatalogRow(row) {
 
 function syncCatalogFromDom() {
   document.querySelectorAll(".catalog-edit-row").forEach(syncCatalogRow);
+}
+
+async function uploadCatalogImage(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (file.size > 25_000_000) {
+    setCatalogNotice("ຮູບໃຫຍ່ເກີນ 25MB", "error");
+    input.value = "";
+    return;
+  }
+
+  const row = input.closest(".catalog-edit-row");
+  setCatalogNotice("ກຳລັງ upload ຮູບສິນຄ້າ...", "muted");
+  const dataUrl = await readFileAsDataUrl(file);
+  const response = await fetch("/api/uploads", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dataUrl }),
+  });
+
+  if (response.status === 401) {
+    window.location.href = "/login.html";
+    return;
+  }
+  if (!response.ok) {
+    setCatalogNotice("Upload ຮູບສິນຄ້າບໍ່ສຳເລັດ", "error");
+    input.value = "";
+    return;
+  }
+
+  const result = await response.json();
+  row.querySelector('[data-catalog-field="image"]').value = result.url;
+  row.querySelector("img").src = result.url;
+  syncCatalogRow(row);
+  input.value = "";
+  setCatalogNotice("Upload ຮູບສຳເລັດ ກົດບັນທຶກ shop ເພື່ອໃຊ້ຮູບນີ້", "success");
 }
 
 async function saveCatalog() {
@@ -766,6 +806,11 @@ function setupAdmin() {
   document.querySelector("#catalogEditor").addEventListener("input", (event) => {
     const row = event.target.closest(".catalog-edit-row");
     if (row) syncCatalogRow(row);
+  });
+  document.querySelector("#catalogEditor").addEventListener("change", (event) => {
+    const input = event.target.closest("[data-catalog-upload]");
+    if (!input) return;
+    uploadCatalogImage(input).catch(() => setCatalogNotice("Upload ຮູບສິນຄ້າບໍ່ສຳເລັດ", "error"));
   });
   document.querySelector("#catalogEditor").addEventListener("click", (event) => {
     const button = event.target.closest("[data-remove-catalog]");

@@ -75,7 +75,12 @@ function renderOrder(order) {
     (item) => item.status === order.productionStatus,
   );
 
-  document.querySelector("#mainProductImage").src = order.productImage;
+  const mainImage = document.querySelector("#mainProductImage");
+  mainImage.src = order.productImage;
+  mainImage.onerror = () => {
+    mainImage.onerror = null;
+    mainImage.src = "./assets/kt-sport-logo.jpg";
+  };
   document.querySelector("#currentIcon").textContent = statusIcon(order.productionStatus);
   document.querySelector("#currentStatusLabel").textContent = statusLabel(order.productionStatus);
   document.querySelector("#currentStatusTime").textContent = currentHistory
@@ -145,7 +150,7 @@ function renderOrder(order) {
       return `
         <li class="product-item">
           <div class="product-row">
-            <img src="${images[0] || item.image}" alt="${escapeHtml(item.productName)}" />
+            <img src="${images[0] || item.image}" alt="${escapeHtml(item.productName)}" onerror="this.src='./assets/kt-sport-logo.jpg'" />
             <div>
               <strong>${escapeHtml(item.productName)}</strong>
               <div class="product-meta">ໄຊ້/ຈຳນວນ: ${escapeHtml(item.shopSize)}</div>
@@ -156,7 +161,7 @@ function renderOrder(order) {
                   .map(
                     (image) => `
                       <a href="${escapeHtml(image)}" target="_blank">
-                        <img src="${escapeHtml(image)}" alt="${escapeHtml(item.productName)}" />
+                        <img src="${escapeHtml(image)}" alt="${escapeHtml(item.productName)}" onerror="this.src='./assets/kt-sport-logo.jpg'" />
                       </a>
                     `,
                   )

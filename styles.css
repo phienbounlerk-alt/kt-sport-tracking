@@ -1095,6 +1095,10 @@ textarea {
   min-height: auto;
 }
 
+.catalog-upload-label input {
+  padding: 7px;
+}
+
 .catalog-edit-grid button {
   min-height: 38px;
   border: 0;
