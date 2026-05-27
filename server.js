@@ -210,9 +210,17 @@ function normalizeAdminName(name, index) {
 
 function normalizeSettings(settings = {}) {
   const names = Array.isArray(settings.adminNames) ? settings.adminNames : [];
+  const rolePasscodes = settings.rolePasscodes && typeof settings.rolePasscodes === "object" ? settings.rolePasscodes : {};
   return {
     adminNames: Array.from({ length: 10 }, (_, index) => normalizeAdminName(names[index], index)),
     shopPhone: String(settings.shopPhone || "8562077728239").replace(/\D/g, "") || "8562077728239",
+    rolePasscodes: {
+      president: String(rolePasscodes.president || "khota2026"),
+      vice: String(rolePasscodes.vice || "khamtan2026"),
+      manager: String(rolePasscodes.manager || "jaloun2026"),
+      accounting: String(rolePasscodes.accounting || "account2026"),
+      engineer: String(rolePasscodes.engineer || "engineer2026"),
+    },
   };
 }
 

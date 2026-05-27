@@ -26,15 +26,53 @@
     </header>
 
     <main class="admin-shell">
+      <section id="roleAccessPanel" class="role-access-panel">
+        <div>
+          <p class="eyebrow">KT SPORT</p>
+          <h1>ເລືອກເມນູບໍລິຫານ</h1>
+        </div>
+        <div id="roleMenuTabs" class="role-menu-tabs"></div>
+        <form id="roleLoginForm" class="role-login-form">
+          <strong id="roleLoginTitle">ເລືອກເມນູກ່ອນ</strong>
+          <label>
+            ລະຫັດເຂົ້າເມນູ
+            <input id="rolePasscodeInput" type="password" autocomplete="current-password" />
+          </label>
+          <div class="role-login-actions">
+            <button id="roleLoginButton" type="submit">ເຂົ້າເມນູ</button>
+            <button id="touchIdButton" type="button" hidden>Touch ID</button>
+          </div>
+          <p id="roleLoginNotice" data-tone="muted">ແຕ່ລະເມນູມີລະຫັດແຍກກັນ.</p>
+        </form>
+      </section>
+
+      <section id="adminWorkspace" hidden>
       <section class="admin-heading">
         <div>
           <p class="eyebrow">Admin</p>
           <h1>ຈັດການອໍເດີ້ ແລະ ອອກ tracking link</h1>
+          <span id="activeRoleLabel" class="role-active-label">-</span>
         </div>
-        <button id="newOrderButton" type="button">ສ້າງບິນໃໝ່</button>
+        <div class="heading-actions">
+          <button id="changeRoleButton" type="button">ປ່ຽນເມນູ</button>
+          <button id="newOrderButton" type="button">ສ້າງບິນໃໝ່</button>
+        </div>
+      </section>
+
+      <section class="role-tools-panel">
+        <div>
+          <p class="eyebrow">Security</p>
+          <h2 id="roleToolsTitle">ຕັ້ງຄ່າລະຫັດເມນູ</h2>
+        </div>
+        <form id="rolePasscodeForm" class="role-passcode-form">
+          <input id="newRolePasscodeInput" type="password" placeholder="ລະຫັດໃໝ່" autocomplete="new-password" />
+          <button type="submit">ບັນທຶກລະຫັດໃໝ່</button>
+          <button id="registerTouchIdButton" type="button" hidden>ຕັ້ງ Touch ID</button>
+        </form>
       </section>
 
       <section id="adminStats" class="admin-stats" aria-label="Order summary"></section>
+      <section id="adminRoleBreakdown" class="admin-breakdown-panel"></section>
 
       <section class="admin-menu-panel" aria-label="Admin menu">
         <div>
@@ -162,6 +200,7 @@
           </div>
           <div id="catalogEditor" class="catalog-editor"></div>
         </section>
+      </section>
       </section>
     </main>
 

@@ -15,10 +15,32 @@ const productionSteps = [
   { key: "COMPLETED", label: "ສຳເລັດແລ້ວ" },
 ];
 
+const roleDefinitions = [
+  { key: "president", title: "ປະທານ", name: "KHOTA", canSeeValue: true, canUseTouchId: false },
+  { key: "vice", title: "ຮອງປະທານ", name: "KHAMTAN", canSeeValue: true, canUseTouchId: false },
+  { key: "manager", title: "ຜູ້ຈັດການ", name: "JALOUN", canSeeValue: false, canUseTouchId: false },
+  { key: "accounting", title: "ບັນຊີ", name: "Accounting", canSeeValue: true, canUseTouchId: false },
+  { key: "engineer", title: "Software Engineer", name: "Engineer", canSeeValue: true, canUseTouchId: true },
+];
+
+const defaultRolePasscodes = {
+  president: "khota2026",
+  vice: "khamtan2026",
+  manager: "jaloun2026",
+  accounting: "account2026",
+  engineer: "engineer2026",
+};
+
 let orders = [];
 let activeCode = null;
-let settings = { adminNames: Array.from({ length: 10 }, (_, index) => `Admin ${index + 1}`), shopPhone: "8562077728239" };
+let settings = {
+  adminNames: Array.from({ length: 10 }, (_, index) => `Admin ${index + 1}`),
+  shopPhone: "8562077728239",
+  rolePasscodes: { ...defaultRolePasscodes },
+};
 let activeMenu = "ALL";
+let selectedRole = "president";
+let activeRole = null;
 let catalogItems = [];
 let catalogSearch = "";
 let filters = {
@@ -84,8 +106,22 @@ const statusLabel = (status) =>
 
 const depositLabel = (status) => (status === "PAID_FULL" || status === "PAID" ? "ຈ່າຍເຕັມ" : "ຄ້າງຊຳລະ");
 
+function roleInfo(key = activeRole || selectedRole) {
+  return roleDefinitions.find((role) => role.key === key) || roleDefinitions[0];
+}
+
+function roleDisplay(role = roleInfo()) {
+  return `${role.title} ${role.name}`;
+}
+
 function setAdminNotice(message, tone = "muted") {
   const notice = document.querySelector("#adminPageNotice");
+  notice.textContent = message;
+  notice.dataset.tone = tone;
+}
+
+function setRoleNotice(message, tone = "muted") {
+  const notice = document.querySelector("#roleLoginNotice");
   notice.textContent = message;
   notice.dataset.tone = tone;
 }
@@ -114,6 +150,136 @@ function trackingUrl(code) {
 
 function totalFor(order) {
   return (order.products || []).reduce((sum, product) => sum + Number(product.totalPrice || 0), 0);
+}
+
+function rolePasscodes() {
+  return { ...defaultRolePasscodes, ...(settings.rolePasscodes || {}) };
+}
+
+function renderRoleMenu() {
+  document.querySelector("#roleMenuTabs").innerHTML = roleDefinitions
+    .map(
+      (role, index) => `
+        <button class="role-menu-card ${selectedRole === role.key ? "active" : ""}" data-role-key="${role.key}" type="button">
+          <span>${index + 1}</span>
+          <strong>${role.title}</strong>
+          <small>${role.name}</small>
+        </button>
+      `,
+    )
+    .join("");
+}
+
+function refreshRoleLogin() {
+  const role = roleInfo(selectedRole);
+  document.querySelector("#roleLoginTitle").textContent = `${roleDisplay(role)} - ໃສ່ລະຫັດເພື່ອເຂົ້າ`;
+  document.querySelector("#rolePasscodeInput").value = "";
+  document.querySelector("#touchIdButton").hidden = !role.canUseTouchId || !window.PublicKeyCredential;
+  renderRoleMenu();
+}
+
+function setRoleWorkspace(roleKey) {
+  activeRole = roleKey;
+  const role = roleInfo(roleKey);
+  localStorage.setItem("ktActiveRole", roleKey);
+  document.querySelector("#roleAccessPanel").hidden = true;
+  document.querySelector("#adminWorkspace").hidden = false;
+  document.querySelector("#activeRoleLabel").textContent = `ເຂົ້າເມນູ: ${roleDisplay(role)}`;
+  document.querySelector("#roleToolsTitle").textContent = `ຕັ້ງຄ່າລະຫັດ: ${roleDisplay(role)}`;
+  document.querySelector("#registerTouchIdButton").hidden = !role.canUseTouchId || !window.PublicKeyCredential;
+  renderStats();
+  renderOrdersList();
+}
+
+function lockRoleWorkspace() {
+  activeRole = null;
+  localStorage.removeItem("ktActiveRole");
+  document.querySelector("#adminWorkspace").hidden = true;
+  document.querySelector("#roleAccessPanel").hidden = false;
+  refreshRoleLogin();
+}
+
+function unlockSelectedRole(passcode) {
+  if (String(passcode || "") !== String(rolePasscodes()[selectedRole] || "")) {
+    setRoleNotice("ລະຫັດບໍ່ຖືກ", "error");
+    return false;
+  }
+  setRoleWorkspace(selectedRole);
+  setAdminNotice(`ເຂົ້າເມນູ ${roleDisplay(roleInfo(selectedRole))} ສຳເລັດ`, "success");
+  return true;
+}
+
+function base64UrlToBuffer(value) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function bufferToBase64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function randomChallenge() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
+
+async function registerTouchId() {
+  if (!activeRole || activeRole !== "engineer" || !window.PublicKeyCredential) {
+    setAdminNotice("Browser ນີ້ບໍ່ຮອງຮັບ Touch ID", "error");
+    return;
+  }
+  const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  if (!available) {
+    setAdminNotice("Mac ຫຼື browser ນີ້ຍັງບໍ່ພ້ອມໃຊ້ Touch ID", "error");
+    return;
+  }
+  const credential = await navigator.credentials.create({
+    publicKey: {
+      challenge: randomChallenge(),
+      rp: { name: "KT SPORT" },
+      user: {
+        id: new TextEncoder().encode("kt-sport-engineer"),
+        name: "software-engineer@kt-sport",
+        displayName: "KT SPORT Software Engineer",
+      },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+      timeout: 60000,
+    },
+  });
+  localStorage.setItem("ktEngineerCredentialId", bufferToBase64Url(credential.rawId));
+  setAdminNotice("ຕັ້ງ Touch ID ສຳເລັດໃນ Mac ເຄື່ອງນີ້", "success");
+}
+
+async function unlockWithTouchId() {
+  if (selectedRole !== "engineer" || !window.PublicKeyCredential) return;
+  const credentialId = localStorage.getItem("ktEngineerCredentialId");
+  if (!credentialId) {
+    setRoleNotice("ກະລຸນາເຂົ້າດ້ວຍລະຫັດແລ້ວຕັ້ງ Touch ID ກ່ອນ", "error");
+    return;
+  }
+  try {
+    await navigator.credentials.get({
+      publicKey: {
+        challenge: randomChallenge(),
+        allowCredentials: [{ type: "public-key", id: base64UrlToBuffer(credentialId) }],
+        userVerification: "required",
+        timeout: 60000,
+      },
+    });
+    setRoleWorkspace("engineer");
+    setAdminNotice("ເຂົ້າ Software Engineer ດ້ວຍ Touch ID ສຳເລັດ", "success");
+  } catch {
+    setRoleNotice("Touch ID ບໍ່ສຳເລັດ", "error");
+  }
 }
 
 function renderAssignedAdminSelect(selected = settings.adminNames[0]) {
@@ -184,15 +350,18 @@ function renderStats() {
   const completedOrders = orders.filter((order) => order.productionStatus === "COMPLETED").length;
   const pendingPayments = orders.filter((order) => order.depositStatus === "PENDING").length;
   const totalValue = orders.reduce((sum, order) => sum + totalFor(order), 0);
+  const canSeeValue = roleInfo(activeRole).canSeeValue;
 
-  document.querySelector("#adminStats").innerHTML = [
+  const stats = [
     ["ບິນທັງໝົດ", totalOrders],
     ["ກຳລັງຜະລິດ", activeOrders],
     ["ສຳເລັດ", completedOrders],
     ["ຄ້າງຊຳລະ", pendingPayments],
-    ["ມູນຄ່າລວມ", money(totalValue)],
     ["Admin", activeMenu === "ALL" || activeMenu === "CATALOG" ? "ທັງໝົດ" : activeMenu],
-  ]
+  ];
+  if (canSeeValue) stats.splice(4, 0, ["ມູນຄ່າລວມ", money(totalValue)]);
+
+  document.querySelector("#adminStats").innerHTML = stats
     .map(
       ([label, value]) => `
         <article class="stat-tile">
@@ -202,6 +371,51 @@ function renderStats() {
       `,
     )
     .join("");
+  renderAdminBreakdown(canSeeValue);
+}
+
+function renderAdminBreakdown(canSeeValue = roleInfo(activeRole).canSeeValue) {
+  const rows = settings.adminNames.map((name) => {
+    const adminOrders = orders.filter((order) => order.assignedAdmin === name);
+    const activeCount = adminOrders.filter((order) => order.productionStatus !== "COMPLETED").length;
+    const completedCount = adminOrders.filter((order) => order.productionStatus === "COMPLETED").length;
+    const pendingCount = adminOrders.filter((order) => order.depositStatus === "PENDING").length;
+    const value = adminOrders.reduce((sum, order) => sum + totalFor(order), 0);
+    return { name, total: adminOrders.length, activeCount, completedCount, pendingCount, value };
+  });
+
+  document.querySelector("#adminRoleBreakdown").innerHTML = `
+    <div class="panel-title-row">
+      <div>
+        <p class="eyebrow">Admin Summary</p>
+        <h2>ສະຫຼຸບຂໍ້ມູນຂອງ Admin ທຸກຄົນ</h2>
+      </div>
+    </div>
+    <div class="admin-breakdown-table ${canSeeValue ? "" : "no-value"}">
+      <div class="admin-breakdown-head">
+        <span>Admin</span>
+        <span>ບິນທັງໝົດ</span>
+        <span>ກຳລັງຜະລິດ</span>
+        <span>ສຳເລັດ</span>
+        <span>ຄ້າງຊຳລະ</span>
+        ${canSeeValue ? "<span>ມູນຄ່າລວມ</span>" : ""}
+      </div>
+      ${rows
+        .map(
+          (row) => `
+            <div class="admin-breakdown-row">
+              <strong>${escapeHtml(row.name)}</strong>
+              <span>${row.total}</span>
+              <span>${row.activeCount}</span>
+              <span>${row.completedCount}</span>
+              <span>${row.pendingCount}</span>
+              ${canSeeValue ? `<span>${money(row.value)}</span>` : ""}
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
 }
 
 function renderOrdersList() {
@@ -514,9 +728,13 @@ async function loadSettings() {
   const response = await fetch("/api/settings");
   if (!response.ok) throw new Error("SETTINGS_FAILED");
   const result = await response.json();
-  settings = result.data;
+  settings = {
+    ...result.data,
+    rolePasscodes: { ...defaultRolePasscodes, ...(result.data.rolePasscodes || {}) },
+  };
   renderAssignedAdminSelect(settings.adminNames[0]);
   renderAdminMenu();
+  refreshRoleLogin();
 }
 
 async function saveSettings() {
@@ -534,12 +752,16 @@ async function saveSettings() {
     return;
   }
   const result = await response.json();
-  settings = result.data;
+  settings = {
+    ...result.data,
+    rolePasscodes: { ...defaultRolePasscodes, ...(result.data.rolePasscodes || {}) },
+  };
   if (activeMenu !== "CATALOG" && activeMenu !== "ALL" && !settings.adminNames.includes(activeMenu)) {
     activeMenu = settings.adminNames[0];
   }
   renderAssignedAdminSelect(document.querySelector("#assignedAdminInput").value);
   renderOrdersList();
+  refreshRoleLogin();
   setAdminNotice("ບັນທຶກຊື່ Admin ສຳເລັດ", "success");
 }
 
@@ -779,6 +1001,8 @@ async function logout() {
 }
 
 function setupAdmin() {
+  renderRoleMenu();
+  refreshRoleLogin();
   document.querySelector("#workflowStatusSelect").innerHTML = productionSteps
     .map((step) => `<option value="${step.key}">${step.label}</option>`)
     .join("");
@@ -791,6 +1015,35 @@ function setupAdmin() {
   document.querySelector("#updateWorkflowButton").addEventListener("click", updateWorkflowStatus);
   document.querySelector("#copyTrackingButton").addEventListener("click", copyTrackingLink);
   document.querySelector("#logoutButton").addEventListener("click", logout);
+  document.querySelector("#changeRoleButton").addEventListener("click", lockRoleWorkspace);
+  document.querySelector("#roleMenuTabs").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-role-key]");
+    if (!button) return;
+    selectedRole = button.dataset.roleKey;
+    refreshRoleLogin();
+    setRoleNotice("ໃສ່ລະຫັດຂອງເມນູນີ້ເພື່ອເຂົ້າ", "muted");
+  });
+  document.querySelector("#roleLoginForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    unlockSelectedRole(document.querySelector("#rolePasscodeInput").value);
+  });
+  document.querySelector("#touchIdButton").addEventListener("click", unlockWithTouchId);
+  document.querySelector("#registerTouchIdButton").addEventListener("click", () => {
+    registerTouchId().catch(() => setAdminNotice("ຕັ້ງ Touch ID ບໍ່ສຳເລັດ", "error"));
+  });
+  document.querySelector("#rolePasscodeForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!activeRole) return;
+    const input = document.querySelector("#newRolePasscodeInput");
+    const nextPasscode = input.value.trim();
+    if (nextPasscode.length < 4) {
+      setAdminNotice("ລະຫັດໃໝ່ຕ້ອງມີຢ່າງໜ້ອຍ 4 ຕົວ", "error");
+      return;
+    }
+    settings.rolePasscodes = { ...rolePasscodes(), [activeRole]: nextPasscode };
+    input.value = "";
+    saveSettings().then(() => setAdminNotice(`ປ່ຽນລະຫັດ ${roleDisplay(roleInfo(activeRole))} ສຳເລັດ`, "success"));
+  });
   document.querySelector("#workflowLinks").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-copy-workflow-link]");
     if (!button) return;

@@ -550,6 +550,168 @@ textarea {
   padding: 22px 0;
 }
 
+.heading-actions,
+.role-login-actions,
+.role-passcode-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.role-access-panel,
+.role-tools-panel,
+.admin-breakdown-panel {
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.role-access-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.role-menu-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.role-menu-card {
+  min-height: 112px;
+  display: grid;
+  gap: 6px;
+  align-content: center;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-menu-card.active {
+  border-color: var(--main);
+  background: #fff0f0;
+  box-shadow: 0 10px 22px rgba(207, 44, 39, 0.12);
+}
+
+.role-menu-card span {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--main);
+  color: white;
+  font-weight: 900;
+}
+
+.role-menu-card strong {
+  font-size: 18px;
+}
+
+.role-menu-card small,
+.role-active-label {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.role-login-form {
+  display: grid;
+  gap: 10px;
+  max-width: 520px;
+}
+
+.role-login-form label,
+.role-passcode-form input {
+  width: 100%;
+}
+
+.role-login-form input,
+.role-passcode-form input {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: white;
+  color: var(--ink);
+}
+
+.role-login-form button,
+.role-passcode-form button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: var(--main);
+  color: white;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+#roleLoginNotice {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+#roleLoginNotice[data-tone="success"] {
+  color: #137144;
+}
+
+#roleLoginNotice[data-tone="error"] {
+  color: #b42318;
+}
+
+.role-tools-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.5fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.admin-breakdown-panel {
+  overflow: auto;
+}
+
+.admin-breakdown-table {
+  min-width: 760px;
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.admin-breakdown-head,
+.admin-breakdown-row {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(4, minmax(82px, 0.7fr)) minmax(130px, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+}
+
+.admin-breakdown-table.no-value .admin-breakdown-head,
+.admin-breakdown-table.no-value .admin-breakdown-row {
+  grid-template-columns: 1.2fr repeat(4, minmax(82px, 0.7fr));
+}
+
+.admin-breakdown-head {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-breakdown-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
 .admin-stats {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -1682,6 +1844,8 @@ textarea {
   .form-grid,
   .workflow-controls,
   .workflow-link-row,
+  .role-menu-tabs,
+  .role-tools-panel,
   .admin-menu-panel,
   .shop-hero,
   .shop-controls,
