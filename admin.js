@@ -45,7 +45,7 @@ const staffMembers = [
   { name: "Ms Loy", birthDate: "20/5/2009", duties: ["ຍິບ"] },
   { name: "Ms koukkik", birthDate: "22/4/1999", duties: ["ຕັດ"] },
   { name: "Ms Nang", birthDate: "2/1/2003", duties: ["QC ກ່ອນຫຍິບ"] },
-  { name: "Ms Grand", birthDate: "17/3/2010", duties: ["ຍັງບໍ່ມີຂໍ້ມູນ"] },
+  { name: "Ms Grand", birthDate: "17/3/2010", duties: ["QC ຫຼັງຫຍິບ"] },
   { name: "Ms Phet", birthDate: "2/11/2002", duties: ["ຍິບ"] },
   { name: "Ms Tieng", birthDate: "10/2/1992", duties: ["ຍິບ"] },
   { name: "Mr Keng", birthDate: "25/1/2000", duties: ["Marketing"] },
@@ -65,6 +65,7 @@ const dutyStatusMap = {
   "ລີດລົງຜ້າ": "HEAT_TRANSFER",
   "ຕັດ": "CUTTING",
   "QC ກ່ອນຫຍິບ": "QC_BEFORE_SEWING",
+  "QC ຫຼັງຫຍິບ": "QC_AFTER_SEWING",
   "ຍິບ": "SEWING",
   "ຂົນສົ່ງ": "DELIVERY",
 };
@@ -116,7 +117,7 @@ const emptyProduct = () => ({
   freeGifts: [],
 });
 
-const emptyOrder = (assignedAdmin = settings.adminNames[0]) => ({
+const emptyOrder = (assignedAdmin = assigneeNames()[0]) => ({
   code: "",
   depositStatus: "PENDING",
   assignedAdmin,
@@ -228,6 +229,21 @@ function staffCanManageOrders(staff) {
   return (staff?.duties || []).includes("Sales");
 }
 
+function salesStaff() {
+  return staffMembers.filter((staff) => staffCanManageOrders(staff));
+}
+
+function assigneeNames() {
+  return salesStaff().map((staff) => staff.name);
+}
+
+function isBirthdayToday(birthDate) {
+  const match = String(birthDate || "").match(/^(\d{1,2})\/(\d{1,2})\//);
+  if (!match) return false;
+  const today = new Date();
+  return Number(match[1]) === today.getDate() && Number(match[2]) === today.getMonth() + 1;
+}
+
 function renderRoleMenu() {
   const visibleRoles = roleDefinitions.filter((role) => !role.engineerOnly);
   document.querySelector("#roleMenuTabs").innerHTML = [
@@ -283,7 +299,7 @@ function renderStaffPanel() {
       ${staffMembers
         .map(
           (staff, index) => `
-            <article class="staff-card ${activeStaffIndex === index ? "active" : ""}" data-staff-index="${index}">
+            <article class="staff-card ${activeStaffIndex === index ? "active" : ""} ${isBirthdayToday(staff.birthDate) ? "birthday" : ""}" data-staff-index="${index}">
               <div class="staff-photo-picker">
                 <img src="${escapeHtml(settings.staffPhotos?.[index] || "./assets/kt-sport-logo.jpg")}" alt="${escapeHtml(staff.name)}" />
                 <label class="photo-upload-button" title="Upload photo">
@@ -410,7 +426,7 @@ function setRoleWorkspace(roleKey) {
     engineerUnlocked = true;
   }
   if (role.key === "admin" && (activeMenu === "ALL" || activeMenu === "CATALOG")) {
-    activeMenu = settings.adminNames[0];
+    activeMenu = assigneeNames()[0];
   }
   localStorage.setItem("ktActiveRole", roleKey);
   document.querySelector("#roleAccessPanel").hidden = true;
@@ -658,12 +674,13 @@ async function unlockWithTouchId() {
   }
 }
 
-function renderAssignedAdminSelect(selected = settings.adminNames[0]) {
+function renderAssignedAdminSelect(selected = assigneeNames()[0]) {
   const select = document.querySelector("#assignedAdminInput");
-  select.innerHTML = settings.adminNames
+  const names = assigneeNames();
+  select.innerHTML = names
     .map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
     .join("");
-  select.value = settings.adminNames.includes(selected) ? selected : settings.adminNames[0];
+  select.value = names.includes(selected) ? selected : names[0];
 }
 
 function activeOrder() {
@@ -671,7 +688,8 @@ function activeOrder() {
 }
 
 function activeAdminName() {
-  return settings.adminNames.includes(activeMenu) ? activeMenu : settings.adminNames[0];
+  const names = assigneeNames();
+  return names.includes(activeMenu) ? activeMenu : names[0];
 }
 
 function scopedOrders() {
@@ -694,13 +712,13 @@ function filteredOrders() {
 }
 
 function renderAdminMenu() {
-  const counts = settings.adminNames.map((name) => orders.filter((order) => order.assignedAdmin === name).length);
-  const adminTabs = settings.adminNames.map(
+  const names = assigneeNames();
+  const counts = names.map((name) => orders.filter((order) => order.assignedAdmin === name).length);
+  const adminTabs = names.map(
     (name, index) => `
-        <div class="admin-menu-tab admin-name-tab ${activeMenu === name ? "active" : ""}" data-admin-menu="${escapeHtml(name)}">
-          <input data-admin-name-index="${index}" value="${escapeHtml(name)}" aria-label="Admin ${index + 1}" />
-          <button type="button" data-admin-menu="${escapeHtml(name)}">${counts[index]}</button>
-        </div>
+        <button class="admin-menu-tab ${activeMenu === name ? "active" : ""}" data-admin-menu="${escapeHtml(name)}" type="button">
+          <strong>${escapeHtml(name)}</strong><span>${counts[index]}</span>
+        </button>
       `,
   );
   const role = roleInfo(activeRole);
@@ -720,7 +738,7 @@ function renderAdminMenu() {
 function setAdminView(menu) {
   activeMenu = menu;
   if (roleInfo(activeRole).key === "admin" && (activeMenu === "ALL" || activeMenu === "CATALOG")) {
-    activeMenu = settings.adminNames[0];
+    activeMenu = assigneeNames()[0];
   }
   const catalogMode = activeMenu === "CATALOG";
   document.querySelector("#ordersPanel").hidden = catalogMode;
@@ -774,7 +792,7 @@ function renderStats() {
 }
 
 function adminBreakdownMarkup(canSeeValue = false) {
-  const rows = settings.adminNames.map((name) => {
+  const rows = assigneeNames().map((name) => {
     const adminOrders = orders.filter((order) => order.assignedAdmin === name);
     const activeCount = adminOrders.filter((order) => order.productionStatus !== "COMPLETED").length;
     const completedCount = adminOrders.filter((order) => order.productionStatus === "COMPLETED").length;
@@ -848,7 +866,7 @@ function renderOrdersList() {
         <button class="order-list-item ${order.code === activeCode ? "active" : ""}" data-code="${order.code}" type="button">
           <strong>${escapeHtml(order.code)}</strong>
           <span>${escapeHtml(order.customerName || "ບໍ່ລະບຸຊື່")} · ${money(totalFor(order))}</span>
-          <small>${escapeHtml(order.assignedAdmin || "Admin 1")} · ${escapeHtml(statusLabel(order.productionStatus))} · ${escapeHtml(depositLabel(order.depositStatus))}</small>
+          <small>${escapeHtml(order.assignedAdmin || assigneeNames()[0])} · ${escapeHtml(statusLabel(order.productionStatus))} · ${escapeHtml(depositLabel(order.depositStatus))}</small>
         </button>
       `,
     )
@@ -1082,7 +1100,7 @@ function fillForm(order) {
   document.querySelector("#codeInput").disabled = Boolean(activeCode);
   document.querySelector("#depositStatusInput").value = order.depositStatus || "PENDING";
   document.querySelector("#receiveDateInput").value = toDateInput(order.receiveDate);
-  renderAssignedAdminSelect(order.assignedAdmin || settings.adminNames[0]);
+  renderAssignedAdminSelect(order.assignedAdmin || assigneeNames()[0]);
   document.querySelector("#customerNameInput").value = order.customerName || "";
   document.querySelector("#phoneInput").value = order.phone || "";
   document.querySelector("#addressInput").value = order.addressCf || "";
@@ -1110,7 +1128,7 @@ function collectOrderPayload() {
     code: document.querySelector("#codeInput").value.trim().toUpperCase(),
     depositStatus: document.querySelector("#depositStatusInput").value,
     receiveDate: receiveDate ? `${receiveDate}T00:00:00` : null,
-    assignedAdmin: document.querySelector("#assignedAdminInput").value || settings.adminNames[0],
+    assignedAdmin: document.querySelector("#assignedAdminInput").value || assigneeNames()[0],
     customerName: document.querySelector("#customerNameInput").value.trim(),
     phone: document.querySelector("#phoneInput").value.trim(),
     addressCf: document.querySelector("#addressInput").value.trim(),
@@ -1144,7 +1162,7 @@ async function loadSettings() {
     staffPhotos: result.data.staffPhotos || {},
     staffPasscodes: result.data.staffPasscodes || {},
   };
-  renderAssignedAdminSelect(settings.adminNames[0]);
+  renderAssignedAdminSelect(assigneeNames()[0]);
   renderAdminMenu();
   refreshRoleLogin();
 }
@@ -1171,8 +1189,8 @@ async function saveSettings() {
     staffPhotos: result.data.staffPhotos || {},
     staffPasscodes: result.data.staffPasscodes || {},
   };
-  if (activeMenu !== "CATALOG" && activeMenu !== "ALL" && !settings.adminNames.includes(activeMenu)) {
-    activeMenu = settings.adminNames[0];
+  if (activeMenu !== "CATALOG" && activeMenu !== "ALL" && !assigneeNames().includes(activeMenu)) {
+    activeMenu = assigneeNames()[0];
   }
   renderAssignedAdminSelect(document.querySelector("#assignedAdminInput").value);
   renderOrdersList();
@@ -1528,6 +1546,7 @@ function setupAdmin() {
     if (salesWorkspaceButton) {
       const staff = staffMembers[activeStaffIndex];
       staffPanelOpen = false;
+      activeMenu = staff?.name || assigneeNames()[0];
       activeStaffIndex = null;
       unlockedStaffIndex = null;
       setRoleWorkspace("admin");
@@ -1538,7 +1557,8 @@ function setupAdmin() {
     if (!card) return;
     activeStaffIndex = Number(card.dataset.staffIndex);
     if (unlockedStaffIndex !== activeStaffIndex) unlockedStaffIndex = null;
-    runFaceScan(staffMembers[activeStaffIndex]?.name || "Staff").then(() => {
+    const staffName = staffMembers[activeStaffIndex]?.name || "Staff";
+    playRoleAnimation(staffName).then(() => runFaceScan(staffName)).then(() => {
       renderStaffPanel();
       setTimeout(() => document.querySelector("#staffPasscodeInput")?.focus(), 0);
     });

@@ -878,6 +878,12 @@ textarea {
   background: #fff0f0;
 }
 
+.staff-card.birthday {
+  border-color: #16a34a;
+  background: #ecfdf3;
+  animation: birthdayPulse 1.4s ease-in-out infinite;
+}
+
 .staff-photo-picker {
   width: 90px;
   height: 90px;
@@ -982,6 +988,16 @@ textarea {
   background: #d9e3e8;
   color: var(--muted);
   cursor: not-allowed;
+}
+
+@keyframes birthdayPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.24);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(22, 163, 74, 0);
+  }
 }
 
 .role-login-form {
