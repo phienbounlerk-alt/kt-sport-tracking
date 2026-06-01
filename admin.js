@@ -349,13 +349,6 @@ function renderStaffPanel() {
         <p class="eyebrow">KT SPORT</p>
         <h2>ພະນັກງານ</h2>
       </div>
-      ${
-        canManagePeople()
-          ? `<div class="link-actions">
-              <button type="button" data-add-staff>ເພີ່ມພະນັກງານ</button>
-            </div>`
-          : ""
-      }
     </div>
     <div class="staff-grid">
       ${staffMembers
@@ -372,7 +365,6 @@ function renderStaffPanel() {
               <strong>${escapeHtml(staff.name.toUpperCase())}</strong>
               <span>${escapeHtml(staff.birthDate)}</span>
               <small>${escapeHtml(staff.duties.join(" / "))}</small>
-              ${canManagePeople() ? `<button class="staff-delete-button" type="button" data-delete-staff="${index}">ລົບ</button>` : ""}
             </article>
           `,
         )
@@ -933,7 +925,6 @@ function renderPeopleManagePanel() {
         <p class="eyebrow">People</p>
         <h2>ຈັດການພະນັກງານ</h2>
       </div>
-      <button type="button" data-add-staff>ເພີ່ມພະນັກງານ</button>
     </div>
     <div class="people-manage-list">
       ${staffMembers
@@ -942,7 +933,6 @@ function renderPeopleManagePanel() {
             <div class="people-manage-row">
               <strong>${escapeHtml(staff.name)}</strong>
               <span>${escapeHtml((staff.duties || []).join(" / "))}</span>
-              <button class="staff-delete-button" type="button" data-delete-staff="${index}">ລົບ</button>
             </div>
           `,
         )
@@ -1772,20 +1762,10 @@ function setupAdmin() {
     }
     const addStaffButton = event.target.closest("[data-add-staff]");
     if (addStaffButton) {
-      const name = prompt("ຊື່ພະນັກງານໃໝ່");
-      if (!name) return;
-      staffMembers.push({ name: name.trim(), birthDate: "ບໍ່ມີຂໍ້ມູນ", duties: ["Sales"] });
-      settings.staffMembers = staffMembers;
-      saveSettings().then(renderRoleMenu);
       return;
     }
     const deleteStaffButton = event.target.closest("[data-delete-staff]");
     if (deleteStaffButton) {
-      const index = Number(deleteStaffButton.dataset.deleteStaff);
-      staffMembers = staffMembers.filter((_, staffIndex) => staffIndex !== index);
-      settings.staffMembers = staffMembers;
-      if (activeStaffIndex === index) activeStaffIndex = null;
-      saveSettings().then(renderRoleMenu);
       return;
     }
     const touchLoginButton = event.target.closest("[data-staff-touch-login]");
@@ -1837,23 +1817,10 @@ function setupAdmin() {
   document.querySelector("#peopleManagePanel").addEventListener("click", (event) => {
     const addStaffButton = event.target.closest("[data-add-staff]");
     if (addStaffButton) {
-      const name = prompt("ຊື່ພະນັກງານໃໝ່");
-      if (!name) return;
-      staffMembers.push({ name: name.trim(), birthDate: "ບໍ່ມີຂໍ້ມູນ", duties: ["Sales"] });
-      saveSettings().then(() => {
-        renderPeopleManagePanel();
-        renderRoleMenu();
-      });
       return;
     }
     const deleteStaffButton = event.target.closest("[data-delete-staff]");
-    if (!deleteStaffButton) return;
-    const index = Number(deleteStaffButton.dataset.deleteStaff);
-    staffMembers = staffMembers.filter((_, staffIndex) => staffIndex !== index);
-    saveSettings().then(() => {
-      renderPeopleManagePanel();
-      renderRoleMenu();
-    });
+    if (deleteStaffButton) return;
   });
   document.querySelector("#roleLoginForm").addEventListener("submit", (event) => {
     event.preventDefault();
