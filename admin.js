@@ -98,6 +98,7 @@ let engineerUnlocked = false;
 let staffPanelOpen = false;
 let activeStaffIndex = null;
 let unlockedStaffIndex = null;
+let ordersSyncTimer = null;
 let catalogItems = [];
 let catalogSearch = "";
 let filters = {
@@ -1166,7 +1167,7 @@ function collectOrderPayload() {
   };
 }
 
-async function loadOrders() {
+async function loadOrders({ silent = false } = {}) {
   const response = await fetch("/api/orders");
   if (response.status === 401) {
     window.location.href = "/login.html";
@@ -1178,7 +1179,7 @@ async function loadOrders() {
   renderRoleMenuSummary();
   if (staffPanelOpen) renderStaffPanel();
   renderOrdersList();
-  setAdminNotice("ດຶງຂໍ້ມູນສຳເລັດ", "success");
+  if (!silent) setAdminNotice("ດຶງຂໍ້ມູນສຳເລັດ", "success");
 }
 
 async function loadSettings() {
@@ -1752,6 +1753,12 @@ function setupAdmin() {
   });
 
   ensureSession();
+  ordersSyncTimer = setInterval(() => {
+    const shouldSync = staffPanelOpen || (activeRole && roleInfo(activeRole).key !== "admin");
+    if (!document.hidden && shouldSync) {
+      loadOrders({ silent: true }).catch(() => {});
+    }
+  }, 5000);
   Promise.all([loadSettings(), loadCatalog()])
     .then(() => {
       fillForm(emptyOrder());
