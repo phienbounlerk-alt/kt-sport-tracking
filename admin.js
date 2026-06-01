@@ -71,11 +71,11 @@ const dutyStatusMap = {
 };
 
 const defaultRolePasscodes = {
-  president: "khota2026",
-  vice: "khamtan2026",
-  manager: "jaloun2026",
-  accounting: "account2026",
-  engineer: "engineer2026",
+  president: "1234",
+  vice: "1234",
+  manager: "1234",
+  accounting: "1234",
+  engineer: "1234",
 };
 
 let orders = [];
@@ -249,12 +249,34 @@ function staffCanManageOrders(staff) {
   return (staff?.duties || []).includes("Sales");
 }
 
+function canEditOrders() {
+  return ["admin", "engineer"].includes(roleInfo(activeRole).key);
+}
+
+function canUseWorkflowPanel() {
+  return roleInfo(activeRole).key === "engineer";
+}
+
 function salesStaff() {
   return staffMembers.filter((staff) => staffCanManageOrders(staff));
 }
 
 function assigneeNames() {
   return salesStaff().map((staff) => staff.name);
+}
+
+function orderProductsSummary(order) {
+  return (order.products || [])
+    .map((product) =>
+      [
+        product.productName || "ສິນຄ້າ",
+        product.shopSize ? `Size: ${product.shopSize}` : "",
+        product.amount ? `x${product.amount}` : "",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    )
+    .join(" / ");
 }
 
 function isBirthdayToday(birthDate) {
@@ -408,9 +430,11 @@ function staffTaskMarkup(staff, staffIndex) {
                 .map(
                   ({ order, status, done }) => `
                     <article class="staff-task-item ${done ? "done" : ""}">
+                      <img class="staff-task-image" src="${escapeHtml(order.productImage || order.products?.[0]?.image || defaultProductImage)}" alt="${escapeHtml(order.code)}" onerror="this.src='./assets/kt-sport-logo.jpg'" />
                       <div>
                         <strong>${escapeHtml(order.code)}</strong>
                         <span>${escapeHtml(order.customerName || "ບໍ່ລະບຸຊື່")} · ${escapeHtml(statusLabel(order.productionStatus))}</span>
+                        <small>${escapeHtml(orderProductsSummary(order) || "ບໍ່ມີລາຍການສິນຄ້າ")}</small>
                         <small>${escapeHtml(staffDutyForStatus(staff, status))} (${escapeHtml(statusLabel(status))})</small>
                       </div>
                       <button type="button" data-staff-confirm="${staffIndex}" data-order-code="${escapeHtml(order.code)}" data-status="${escapeHtml(status)}" ${done ? "disabled" : ""}>
@@ -457,7 +481,7 @@ function setRoleWorkspace(roleKey) {
   document.querySelector("#roleToolsTitle").textContent = `ຕັ້ງຄ່າລະຫັດ: ${roleDisplay(role)}`;
   document.querySelector(".role-tools-panel").hidden = Boolean(role.noPasscode);
   document.querySelector("#registerTouchIdButton").hidden = !role.canUseTouchId || !window.PublicKeyCredential;
-  document.querySelector("#workflowPanel").hidden = role.key === "admin";
+  document.querySelector("#workflowPanel").hidden = !canUseWorkflowPanel();
   renderStats();
   renderOrdersList();
 }
@@ -764,12 +788,12 @@ function setAdminView(menu) {
     activeMenu = assigneeNames()[0];
   }
   const catalogMode = activeMenu === "CATALOG";
-  const salesMode = roleInfo(activeRole).key === "admin";
+  const editable = canEditOrders();
   document.querySelector("#ordersPanel").hidden = catalogMode;
-  document.querySelector("#orderEditorPanel").hidden = catalogMode;
+  document.querySelector("#orderEditorPanel").hidden = catalogMode || !editable;
   document.querySelector("#catalogPanel").hidden = !catalogMode;
-  document.querySelector("#newOrderButton").hidden = catalogMode;
-  document.querySelector("#workflowPanel").hidden = salesMode || catalogMode;
+  document.querySelector("#newOrderButton").hidden = catalogMode || !editable;
+  document.querySelector("#workflowPanel").hidden = catalogMode || !canUseWorkflowPanel();
   renderAdminMenu();
   if (catalogMode) {
     renderCatalogEditor();
@@ -899,7 +923,7 @@ function renderOrdersList() {
 }
 
 function renderWorkflow(order) {
-  if (roleInfo(activeRole).key === "admin") {
+  if (!canUseWorkflowPanel()) {
     document.querySelector("#workflowPanel").hidden = true;
     return;
   }
@@ -1371,6 +1395,10 @@ async function saveCatalog() {
 
 async function saveOrder(event) {
   event.preventDefault();
+  if (!canEditOrders()) {
+    setAdminNotice("ມີແຕ່ Sales ແລະ Software Engineer ທີ່ສ້າງ/ແກ້ບິນໄດ້", "error");
+    return;
+  }
   const payload = collectOrderPayload();
   if (!payload.customerName || payload.products.some((product) => !product.productName)) {
     setAdminNotice("ກະລຸນາກອກຊື່ລູກຄ້າ ແລະ ຊື່ສິນຄ້າ", "error");
@@ -1400,7 +1428,7 @@ async function saveOrder(event) {
   activeCode = result.data.code;
   await loadOrders();
   fillForm(result.data);
-  setAdminNotice(`ບັນທຶກສຳເລັດ: ${result.data.code}`, "success");
+  setAdminNotice(`ບັນທຶກສຳເລັດ: ${result.data.code} ແລ້ວບິນຈະ sync ໄປຫາຝ່າຍອອກແບບເອງ`, "success");
 }
 
 async function updateWorkflowStatus() {

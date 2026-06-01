@@ -23,6 +23,8 @@ const uploadsDir = process.env.UPLOADS_DIR
 const port = Number(process.env.PORT || 4173);
 const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
 const publicBaseUrl = String(process.env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
+const googleSheetsWebhookUrl = String(process.env.GOOGLE_SHEETS_WEBHOOK_URL || "").trim();
+const googleSheetsWebhookSecret = String(process.env.GOOGLE_SHEETS_WEBHOOK_SECRET || "").trim();
 const sessions = new Map();
 const maxImageBytes = 25_000_000;
 
@@ -221,11 +223,11 @@ function normalizeSettings(settings = {}) {
     staffPhotos,
     staffPasscodes,
     rolePasscodes: {
-      president: String(rolePasscodes.president || "khota2026"),
-      vice: String(rolePasscodes.vice || "khamtan2026"),
-      manager: String(rolePasscodes.manager || "jaloun2026"),
-      accounting: String(rolePasscodes.accounting || "account2026"),
-      engineer: String(rolePasscodes.engineer || "engineer2026"),
+      president: String(rolePasscodes.president || "1234"),
+      vice: String(rolePasscodes.vice || "1234"),
+      manager: String(rolePasscodes.manager || "1234"),
+      accounting: String(rolePasscodes.accounting || "1234"),
+      engineer: String(rolePasscodes.engineer || "1234"),
     },
   };
 }
@@ -325,6 +327,7 @@ async function readOrders() {
 async function writeOrders(orders) {
   await fs.mkdir(path.dirname(dataFile), { recursive: true });
   await fs.writeFile(dataFile, `${JSON.stringify(orders, null, 2)}\n`);
+  await syncGoogleSheets("orders", { orders: Object.values(orders) });
 }
 
 async function readSettings() {
@@ -336,6 +339,7 @@ async function readSettings() {
 async function writeSettings(settings) {
   await fs.mkdir(path.dirname(settingsFile), { recursive: true });
   await fs.writeFile(settingsFile, `${JSON.stringify(normalizeSettings(settings), null, 2)}\n`);
+  await syncGoogleSheets("settings", { settings: normalizeSettings(settings) });
 }
 
 async function readCatalog() {
@@ -349,6 +353,28 @@ async function writeCatalog(catalog) {
   await fs.mkdir(path.dirname(catalogFile), { recursive: true });
   const data = Array.isArray(catalog) ? catalog.map(normalizeCatalogItem).slice(0, 500) : [];
   await fs.writeFile(catalogFile, `${JSON.stringify(data, null, 2)}\n`);
+  await syncGoogleSheets("catalog", { catalog: data });
+}
+
+async function syncGoogleSheets(kind, data) {
+  if (!googleSheetsWebhookUrl) return;
+  try {
+    const response = await fetch(googleSheetsWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        secret: googleSheetsWebhookSecret,
+        kind,
+        syncedAt: new Date().toISOString(),
+        ...data,
+      }),
+    });
+    if (!response.ok) {
+      console.warn(`Google Sheets sync failed: ${kind} ${response.status}`);
+    }
+  } catch (error) {
+    console.warn(`Google Sheets sync failed: ${kind} ${error.message}`);
+  }
 }
 
 async function applyWorkflowStatus(order, status, note = "", dataUrls = []) {
@@ -448,7 +474,14 @@ async function handleApi(req, res, url) {
       res.end();
       return;
     }
-    return sendJson(res, 200, { ok: true, dataFile, catalogFile, settingsFile, uploadsDir });
+    return sendJson(res, 200, {
+      ok: true,
+      dataFile,
+      catalogFile,
+      settingsFile,
+      uploadsDir,
+      googleSheetsSync: Boolean(googleSheetsWebhookUrl),
+    });
   }
 
   if (req.method === "POST" && url.pathname === "/api/login") {

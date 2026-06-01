@@ -960,13 +960,22 @@ textarea {
 
 .staff-task-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 86px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
+}
+
+.staff-task-image {
+  width: 86px;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff5f5;
 }
 
 .staff-task-item div {
