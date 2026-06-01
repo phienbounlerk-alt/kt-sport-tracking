@@ -24,7 +24,7 @@ const roleDefinitions = [
   { key: "admin", title: "Shop", name: "", canSeeValue: false, noPasscode: true },
 ];
 
-const staffMembers = [
+const defaultStaffMembers = [
   { name: "Mr Khota XAIYASAN", birthDate: "22/10/1996", duties: ["ປະທານ"] },
   { name: "Mr Khamtan Derndavong", birthDate: "7/2/1995", duties: ["ຮອງປະທານ"] },
   { name: "Mr Jaloun Gnonkaseumsouk", birthDate: "4/10/1995", duties: ["ຜູ້ຈັດການ", "Sales", "ອອກແບບ"] },
@@ -56,6 +56,7 @@ const staffMembers = [
   { name: "Mr Jo", birthDate: "ຍັງບໍ່ມີຂໍ້ມູນ", duties: ["ລີດລົງຜ້າ"] },
   { name: "Ms Mee", birthDate: "31/3/2004", duties: ["Sales"] },
 ];
+let staffMembers = defaultStaffMembers.map((staff) => ({ ...staff, duties: [...staff.duties] }));
 
 const dutyStatusMap = {
   Sales: "PRODUCTION_ORDER",
@@ -87,6 +88,7 @@ let settings = {
   rolePhotos: {},
   staffPhotos: {},
   staffPasscodes: {},
+  staffMembers,
 };
 let activeMenu = "ALL";
 let selectedRole = "president";
@@ -106,10 +108,14 @@ let filters = {
   status: "ALL",
   deposit: "ALL",
 };
+let showTrash = false;
 
 const emptyProduct = () => ({
+  productType: "ເສື້ອກິລາ",
   productName: "",
   shopSize: "",
+  patternQty: 0,
+  fabricQty: 0,
   amount: 1,
   price: 0,
   totalPrice: 0,
@@ -207,7 +213,7 @@ function trackingUrl(code) {
 }
 
 function totalFor(order) {
-  return (order.products || []).reduce((sum, product) => sum + Number(product.totalPrice || 0), 0);
+  return Number(order?.grandTotal || 0) || (order.products || []).reduce((sum, product) => sum + Number(product.totalPrice || 0), 0);
 }
 
 function rolePasscodes() {
@@ -253,6 +259,10 @@ function canEditOrders() {
   return ["admin", "engineer"].includes(roleInfo(activeRole).key);
 }
 
+function canManagePeople() {
+  return ["president", "vice", "manager", "engineer"].includes(roleInfo(activeRole).key);
+}
+
 function canUseWorkflowPanel() {
   return roleInfo(activeRole).key === "engineer";
 }
@@ -270,7 +280,10 @@ function orderProductsSummary(order) {
     .map((product) =>
       [
         product.productName || "ສິນຄ້າ",
+        product.productType || "",
         product.shopSize ? `Size: ${product.shopSize}` : "",
+        product.patternQty ? `ແພັດເທິ້ນ ${product.patternQty}` : "",
+        product.fabricQty ? `ຜືນ ${product.fabricQty}` : "",
         product.amount ? `x${product.amount}` : "",
       ]
         .filter(Boolean)
@@ -336,6 +349,13 @@ function renderStaffPanel() {
         <p class="eyebrow">KT SPORT</p>
         <h2>ພະນັກງານ</h2>
       </div>
+      ${
+        canManagePeople()
+          ? `<div class="link-actions">
+              <button type="button" data-add-staff>ເພີ່ມພະນັກງານ</button>
+            </div>`
+          : ""
+      }
     </div>
     <div class="staff-grid">
       ${staffMembers
@@ -352,6 +372,7 @@ function renderStaffPanel() {
               <strong>${escapeHtml(staff.name.toUpperCase())}</strong>
               <span>${escapeHtml(staff.birthDate)}</span>
               <small>${escapeHtml(staff.duties.join(" / "))}</small>
+              ${canManagePeople() ? `<button class="staff-delete-button" type="button" data-delete-staff="${index}">ລົບ</button>` : ""}
             </article>
           `,
         )
@@ -396,13 +417,13 @@ function staffTaskMarkup(staff, staffIndex) {
     `;
   }
   const rows = orders
-    .filter((order) => order.productionStatus !== "COMPLETED")
+    .filter((order) => !order.deletedAt)
     .flatMap((order) =>
       statuses
-        .filter((status) => status === nextOpenStatus(order))
         .map((status) => {
-          const done = (order.productionHistory || []).some((item) => item.status === status);
-          return { order, status, done };
+          const history = (order.productionHistory || []).find((item) => item.status === status);
+          const isNext = status === nextOpenStatus(order);
+          return { order, status, history, isNext };
         }),
     );
   return `
@@ -428,20 +449,27 @@ function staffTaskMarkup(staff, staffIndex) {
           rows.length
             ? rows
                 .map(
-                  ({ order, status, done }) => `
-                    <article class="staff-task-item ${done ? "done" : ""}">
+                  ({ order, status, history, isNext }) => {
+                    const doneBy = history?.actor || "";
+                    const canCancel = doneBy === staff.name;
+                    const locked = Boolean(history && !canCancel);
+                    return `
+                    <article class="staff-task-item ${history ? "done" : ""}">
                       <img class="staff-task-image" src="${escapeHtml(order.productImage || order.products?.[0]?.image || defaultProductImage)}" alt="${escapeHtml(order.code)}" onerror="this.src='./assets/kt-sport-logo.jpg'" />
                       <div>
                         <strong>${escapeHtml(order.code)}</strong>
                         <span>${escapeHtml(order.customerName || "ບໍ່ລະບຸຊື່")} · ${escapeHtml(statusLabel(order.productionStatus))}</span>
                         <small>${escapeHtml(orderProductsSummary(order) || "ບໍ່ມີລາຍການສິນຄ້າ")}</small>
                         <small>${escapeHtml(staffDutyForStatus(staff, status))} (${escapeHtml(statusLabel(status))})</small>
+                        ${history ? `<small>ຜູ້ເຮັດ: ${escapeHtml(doneBy || "ບໍ່ລະບຸ")} · ${escapeHtml(formatDateTime(history.createdAt))}</small>` : ""}
                       </div>
-                      <button type="button" data-staff-confirm="${staffIndex}" data-order-code="${escapeHtml(order.code)}" data-status="${escapeHtml(status)}" ${done ? "disabled" : ""}>
-                        ${done ? "ຢືນຢັນແລ້ວ" : `ຢືນຢັນ ${escapeHtml(staffDutyForStatus(staff, status))}`}
+                      <button type="button" data-staff-confirm="${staffIndex}" data-order-code="${escapeHtml(order.code)}" data-status="${escapeHtml(status)}" ${history || !isNext ? "disabled" : ""}>
+                        ${locked ? "ມີຄົນກົດແລ້ວ" : history ? "ຢືນຢັນແລ້ວ" : isNext ? `ຢືນຢັນ ${escapeHtml(staffDutyForStatus(staff, status))}` : "ລໍຖ້າຂັ້ນກ່ອນ"}
                       </button>
+                      ${canCancel ? `<button type="button" data-staff-cancel="${staffIndex}" data-order-code="${escapeHtml(order.code)}" data-status="${escapeHtml(status)}">ຍົກເລີກ</button>` : ""}
                     </article>
-                  `,
+                  `;
+                  },
                 )
                 .join("")
             : `<p class="empty-state">ຍັງບໍ່ມີບິນທີ່ຕ້ອງກົດ.</p>`
@@ -482,8 +510,7 @@ function setRoleWorkspace(roleKey) {
   document.querySelector(".role-tools-panel").hidden = Boolean(role.noPasscode);
   document.querySelector("#registerTouchIdButton").hidden = !role.canUseTouchId || !window.PublicKeyCredential;
   document.querySelector("#workflowPanel").hidden = !canUseWorkflowPanel();
-  renderStats();
-  renderOrdersList();
+  setAdminView(activeMenu);
 }
 
 function playRoleAnimation(roleKey) {
@@ -740,8 +767,9 @@ function activeAdminName() {
 }
 
 function scopedOrders() {
-  if (activeMenu === "ALL" || activeMenu === "CATALOG") return orders;
-  return orders.filter((order) => order.assignedAdmin === activeMenu);
+  const visible = showTrash ? orders.filter((order) => order.deletedAt) : orders.filter((order) => !order.deletedAt);
+  if (activeMenu === "ALL" || activeMenu === "CATALOG") return visible;
+  return visible.filter((order) => order.assignedAdmin === activeMenu);
 }
 
 function filteredOrders() {
@@ -793,6 +821,8 @@ function setAdminView(menu) {
   document.querySelector("#orderEditorPanel").hidden = catalogMode || !editable;
   document.querySelector("#catalogPanel").hidden = !catalogMode;
   document.querySelector("#newOrderButton").hidden = catalogMode || !editable;
+  document.querySelector("#trashToggleButton").hidden = catalogMode || !editable;
+  document.querySelector(".admin-menu-panel").hidden = roleInfo(activeRole).key === "admin";
   document.querySelector("#workflowPanel").hidden = catalogMode || !canUseWorkflowPanel();
   renderAdminMenu();
   if (catalogMode) {
@@ -816,6 +846,7 @@ function renderStats() {
     ["ກຳລັງຜະລິດ", activeOrders],
     ["ສຳເລັດ", completedOrders],
     ["ຄ້າງຊຳລະ", pendingPayments],
+    ["ມື້ປິດບັນຊີ", "25 ຂອງທຸກເດືອນ"],
     ["Sales", activeMenu === "ALL" || activeMenu === "CATALOG" ? "ທັງໝົດ" : activeMenu],
   ];
   if (canSeeValue) stats.splice(4, 0, ["ມູນຄ່າລວມ", money(totalValue)]);
@@ -838,6 +869,7 @@ function renderStats() {
   } else {
     breakdown.innerHTML = "";
   }
+  renderPeopleManagePanel();
 }
 
 function adminBreakdownMarkup(canSeeValue = false) {
@@ -888,6 +920,37 @@ function renderAdminBreakdown(canSeeValue = roleInfo(activeRole).canSeeValue) {
   document.querySelector("#adminRoleBreakdown").innerHTML = adminBreakdownMarkup(canSeeValue);
 }
 
+function renderPeopleManagePanel() {
+  const panel = document.querySelector("#peopleManagePanel");
+  panel.hidden = !canManagePeople();
+  if (panel.hidden) {
+    panel.innerHTML = "";
+    return;
+  }
+  panel.innerHTML = `
+    <div class="panel-title-row">
+      <div>
+        <p class="eyebrow">People</p>
+        <h2>ຈັດການພະນັກງານ</h2>
+      </div>
+      <button type="button" data-add-staff>ເພີ່ມພະນັກງານ</button>
+    </div>
+    <div class="people-manage-list">
+      ${staffMembers
+        .map(
+          (staff, index) => `
+            <div class="people-manage-row">
+              <strong>${escapeHtml(staff.name)}</strong>
+              <span>${escapeHtml((staff.duties || []).join(" / "))}</span>
+              <button class="staff-delete-button" type="button" data-delete-staff="${index}">ລົບ</button>
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 function renderRoleMenuSummary() {
   const summary = document.querySelector("#roleMenuSummary");
   if (!summary) return;
@@ -914,7 +977,7 @@ function renderOrdersList() {
       (order) => `
         <button class="order-list-item ${order.code === activeCode ? "active" : ""}" data-code="${order.code}" type="button">
           <strong>${escapeHtml(order.code)}</strong>
-          <span>${escapeHtml(order.customerName || "ບໍ່ລະບຸຊື່")} · ${money(totalFor(order))}</span>
+          <span>${escapeHtml(order.customerName || "ບໍ່ລະບຸຊື່")}${roleInfo(activeRole).canSeeValue ? ` · ${money(order.grandTotal || totalFor(order))}` : ""}</span>
           <small>${escapeHtml(order.assignedAdmin || assigneeNames()[0])} · ${escapeHtml(statusLabel(order.productionStatus))} · ${escapeHtml(depositLabel(order.depositStatus))}</small>
         </button>
       `,
@@ -945,6 +1008,7 @@ function renderWorkflow(order) {
             <li>
               <strong>${escapeHtml(statusLabel(item.status))}</strong>
               <span>${formatDateTime(item.createdAt)}</span>
+              ${item.actor ? `<p>ຜູ້ເຮັດ: ${escapeHtml(item.actor)}</p>` : ""}
               ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
               ${
                 images.length
@@ -1010,8 +1074,16 @@ function renderProducts(products) {
           </div>
           <div class="form-grid">
             <label>
+              ປະເພດສິນຄ້າ
+              <select data-product-field="productType">
+                ${["ເສື້ອກິລາ", "ເສື້ອພິມລາຍ", "ໃສ່ຊື່ເອງ"]
+                  .map((type) => `<option value="${type}" ${product.productType === type ? "selected" : ""}>${type}</option>`)
+                  .join("")}
+              </select>
+            </label>
+            <label>
               ຊື່ສິນຄ້າ
-              <input data-product-field="productName" value="${escapeHtml(product.productName)}" required />
+              <input data-product-field="productName" value="${escapeHtml(product.productName)}" placeholder="ໃສ່ຊື່ເອງ" required />
             </label>
             <label>
               ໄຊ້/ຈຳນວນ
@@ -1020,6 +1092,14 @@ function renderProducts(products) {
             <label>
               ຈຳນວນ
               <input data-product-field="amount" type="number" min="1" value="${product.amount || 1}" />
+            </label>
+            <label>
+              ຈຳນວນໄຊ້
+              <input data-product-field="patternQty" type="number" min="0" value="${product.patternQty || 0}" />
+            </label>
+            <label>
+              ຈຳນວນຜືນ
+              <input data-product-field="fabricQty" type="number" min="0" value="${product.fabricQty || 0}" />
             </label>
             <label>
               ລາຄາ/ຊິ້ນ
@@ -1074,6 +1154,19 @@ async function readFilesAsDataUrls(files, limit = 10) {
     dataUrls.push(await readFileAsDataUrl(file));
   }
   return dataUrls;
+}
+
+async function uploadImageFile(file) {
+  if (file.size > 25_000_000) throw new Error("IMAGE_TOO_LARGE");
+  const dataUrl = await readFileAsDataUrl(file);
+  const response = await fetch("/api/uploads", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dataUrl }),
+  });
+  if (!response.ok) throw new Error("UPLOAD_FAILED");
+  const result = await response.json();
+  return result.url;
 }
 
 async function uploadProductImage(input) {
@@ -1135,8 +1228,11 @@ function collectProducts() {
     const amount = Math.max(1, Number(get("amount")) || 1);
     const price = Math.max(0, Number(get("price")) || 0);
     return {
+      productType: get("productType").trim() || "ເສື້ອກິລາ",
       productName: get("productName").trim(),
       shopSize: get("shopSize").trim(),
+      patternQty: Math.max(0, Number(get("patternQty")) || 0),
+      fabricQty: Math.max(0, Number(get("fabricQty")) || 0),
       amount,
       price,
       totalPrice: amount * price,
@@ -1154,6 +1250,9 @@ function fillForm(order, shouldRenderList = true) {
   document.querySelector("#codeInput").disabled = Boolean(activeCode);
   document.querySelector("#depositStatusInput").value = order.depositStatus || "PENDING";
   document.querySelector("#receiveDateInput").value = toDateInput(order.receiveDate);
+  document.querySelector("#depositAmountInput").value = order.depositAmount || 0;
+  document.querySelector("#balanceAmountInput").value = order.balanceAmount || 0;
+  document.querySelector("#grandTotalInput").value = order.grandTotal || totalFor(order) || 0;
   renderAssignedAdminSelect(order.assignedAdmin || assigneeNames()[0]);
   document.querySelector("#customerNameInput").value = order.customerName || "";
   document.querySelector("#phoneInput").value = order.phone || "";
@@ -1170,6 +1269,9 @@ function fillForm(order, shouldRenderList = true) {
     link.classList.add("disabled");
     document.querySelector("#copyTrackingButton").disabled = true;
   }
+  document.querySelector("#deleteOrderButton").hidden = !activeCode || Boolean(order.deletedAt);
+  document.querySelector("#restoreOrderButton").hidden = !activeCode || !order.deletedAt;
+  document.querySelector("#saveOrderButton").disabled = Boolean(order.deletedAt);
   renderWorkflow(order);
   if (shouldRenderList) renderOrdersList();
 }
@@ -1182,8 +1284,11 @@ function collectOrderPayload() {
     code: document.querySelector("#codeInput").value.trim().toUpperCase(),
     depositStatus: document.querySelector("#depositStatusInput").value,
     receiveDate: receiveDate ? `${receiveDate}T00:00:00` : null,
+    depositAmount: Math.max(0, Number(document.querySelector("#depositAmountInput").value) || 0),
+    balanceAmount: Math.max(0, Number(document.querySelector("#balanceAmountInput").value) || 0),
+    grandTotal: Math.max(0, Number(document.querySelector("#grandTotalInput").value) || totalFor({ products })),
     assignedAdmin: document.querySelector("#assignedAdminInput").value || assigneeNames()[0],
-    customerName: document.querySelector("#customerNameInput").value.trim(),
+    customerName: document.querySelector("#customerNameInput").value.trim() || "ບໍ່ລະບຸຊື່",
     phone: document.querySelector("#phoneInput").value.trim(),
     addressCf: document.querySelector("#addressInput").value.trim(),
     productImage: firstProduct?.image || defaultProductImage,
@@ -1192,7 +1297,7 @@ function collectOrderPayload() {
 }
 
 async function loadOrders({ silent = false } = {}) {
-  const response = await fetch("/api/orders");
+  const response = await fetch("/api/orders?includeDeleted=1");
   if (response.status === 401) {
     window.location.href = "/login.html";
     return;
@@ -1216,13 +1321,20 @@ async function loadSettings() {
     rolePhotos: result.data.rolePhotos || {},
     staffPhotos: result.data.staffPhotos || {},
     staffPasscodes: result.data.staffPasscodes || {},
+    staffMembers: Array.isArray(result.data.staffMembers) && result.data.staffMembers.length ? result.data.staffMembers : defaultStaffMembers,
   };
+  staffMembers = settings.staffMembers.map((staff) => ({
+    name: staff.name,
+    birthDate: staff.birthDate || "ບໍ່ມີຂໍ້ມູນ",
+    duties: Array.isArray(staff.duties) ? staff.duties : [],
+  }));
   renderAssignedAdminSelect(assigneeNames()[0]);
   renderAdminMenu();
   refreshRoleLogin();
 }
 
 async function saveSettings() {
+  settings.staffMembers = staffMembers;
   const response = await fetch("/api/settings", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -1243,7 +1355,13 @@ async function saveSettings() {
     rolePhotos: result.data.rolePhotos || {},
     staffPhotos: result.data.staffPhotos || {},
     staffPasscodes: result.data.staffPasscodes || {},
+    staffMembers: Array.isArray(result.data.staffMembers) && result.data.staffMembers.length ? result.data.staffMembers : staffMembers,
   };
+  staffMembers = settings.staffMembers.map((staff) => ({
+    name: staff.name,
+    birthDate: staff.birthDate || "ບໍ່ມີຂໍ້ມູນ",
+    duties: Array.isArray(staff.duties) ? staff.duties : [],
+  }));
   if (activeMenu !== "CATALOG" && activeMenu !== "ALL" && !assigneeNames().includes(activeMenu)) {
     activeMenu = assigneeNames()[0];
   }
@@ -1400,8 +1518,8 @@ async function saveOrder(event) {
     return;
   }
   const payload = collectOrderPayload();
-  if (!payload.customerName || payload.products.some((product) => !product.productName)) {
-    setAdminNotice("ກະລຸນາກອກຊື່ລູກຄ້າ ແລະ ຊື່ສິນຄ້າ", "error");
+  if (payload.products.some((product) => !product.productName)) {
+    setAdminNotice("ກະລຸນາກອກຊື່ສິນຄ້າ", "error");
     return;
   }
 
@@ -1488,6 +1606,7 @@ async function confirmStaffTask(staffIndex, code, status) {
       status,
       note: `ຢືນຢັນໂດຍ ${staff.name} (${duty})`,
       images: [],
+      actor: staff.name,
     }),
   });
   if (!response.ok) {
@@ -1498,6 +1617,49 @@ async function confirmStaffTask(staffIndex, code, status) {
   orders = orders.map((order) => (order.code === result.data.code ? result.data : order));
   renderStaffPanel();
   setRoleNotice(`ຢືນຢັນ ${duty} ສຳເລັດ`, "success");
+}
+
+async function cancelStaffTask(staffIndex, code, status) {
+  const staff = staffMembers[staffIndex];
+  if (!staff) return;
+  const response = await fetch(`/api/orders/${encodeURIComponent(code)}/status`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status, actor: staff.name }),
+  });
+  if (!response.ok) {
+    setRoleNotice("ຍົກເລີກບໍ່ສຳເລັດ", "error");
+    return;
+  }
+  const result = await response.json();
+  orders = orders.map((order) => (order.code === result.data.code ? result.data : order));
+  renderStaffPanel();
+  setRoleNotice("ຍົກເລີກຂັ້ນຕອນສຳເລັດ", "success");
+}
+
+async function deleteActiveOrder() {
+  if (!activeCode) return;
+  const response = await fetch(`/api/orders/${encodeURIComponent(activeCode)}`, { method: "DELETE" });
+  if (!response.ok) {
+    setAdminNotice("ລົບບິນບໍ່ສຳເລັດ", "error");
+    return;
+  }
+  await loadOrders({ silent: true });
+  fillForm(filteredOrders()[0] || emptyOrder(activeAdminName()));
+  setAdminNotice("ຍ້າຍໄປຖັງຂີ້ເຫຍື່ອແລ້ວ ສາມາດກູ້ຄືນໄດ້ພາຍໃນ 30 ວັນ", "success");
+}
+
+async function restoreActiveOrder() {
+  if (!activeCode) return;
+  const response = await fetch(`/api/orders/${encodeURIComponent(activeCode)}/restore`, { method: "POST" });
+  if (!response.ok) {
+    setAdminNotice("ກູ້ຄືນບິນບໍ່ສຳເລັດ", "error");
+    return;
+  }
+  const result = await response.json();
+  await loadOrders({ silent: true });
+  fillForm(result.data);
+  setAdminNotice("ກູ້ຄືນບິນສຳເລັດ", "success");
 }
 
 async function copyTrackingLink() {
@@ -1526,6 +1688,14 @@ function setupAdmin() {
     .map((step) => `<option value="${step.key}">${step.label}</option>`)
     .join("");
   document.querySelector("#newOrderButton").addEventListener("click", () => fillForm(emptyOrder(activeAdminName())));
+  document.querySelector("#trashToggleButton").addEventListener("click", () => {
+    showTrash = !showTrash;
+    document.querySelector("#trashToggleButton").textContent = showTrash ? "ກັບໄປບິນປົກກະຕິ" : "ຖັງຂີ້ເຫຍື່ອ";
+    fillForm(filteredOrders()[0] || emptyOrder(activeAdminName()));
+    renderOrdersList();
+  });
+  document.querySelector("#deleteOrderButton").addEventListener("click", deleteActiveOrder);
+  document.querySelector("#restoreOrderButton").addEventListener("click", restoreActiveOrder);
   document.querySelector("#refreshOrdersButton").addEventListener("click", () => loadOrders());
   document.querySelector("#orderForm").addEventListener("submit", saveOrder);
   document.querySelector("#updateWorkflowButton").addEventListener("click", updateWorkflowStatus);
@@ -1558,7 +1728,7 @@ function setupAdmin() {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const image = await readFileAsDataUrl(file);
+      const image = await uploadImageFile(file);
       if (roleInput) {
         settings.rolePhotos = { ...(settings.rolePhotos || {}), [roleInput.dataset.rolePhotoKey]: image };
       }
@@ -1589,6 +1759,33 @@ function setupAdmin() {
         confirmButton.dataset.orderCode,
         confirmButton.dataset.status,
       );
+      return;
+    }
+    const cancelButton = event.target.closest("[data-staff-cancel]");
+    if (cancelButton) {
+      cancelStaffTask(
+        Number(cancelButton.dataset.staffCancel),
+        cancelButton.dataset.orderCode,
+        cancelButton.dataset.status,
+      );
+      return;
+    }
+    const addStaffButton = event.target.closest("[data-add-staff]");
+    if (addStaffButton) {
+      const name = prompt("ຊື່ພະນັກງານໃໝ່");
+      if (!name) return;
+      staffMembers.push({ name: name.trim(), birthDate: "ບໍ່ມີຂໍ້ມູນ", duties: ["Sales"] });
+      settings.staffMembers = staffMembers;
+      saveSettings().then(renderRoleMenu);
+      return;
+    }
+    const deleteStaffButton = event.target.closest("[data-delete-staff]");
+    if (deleteStaffButton) {
+      const index = Number(deleteStaffButton.dataset.deleteStaff);
+      staffMembers = staffMembers.filter((_, staffIndex) => staffIndex !== index);
+      settings.staffMembers = staffMembers;
+      if (activeStaffIndex === index) activeStaffIndex = null;
+      saveSettings().then(renderRoleMenu);
       return;
     }
     const touchLoginButton = event.target.closest("[data-staff-touch-login]");
@@ -1636,6 +1833,27 @@ function setupAdmin() {
     unlockedStaffIndex = activeStaffIndex;
     renderStaffPanel();
     setRoleNotice(`ເຂົ້າໜ້າພະນັກງານສຳເລັດ`, "success");
+  });
+  document.querySelector("#peopleManagePanel").addEventListener("click", (event) => {
+    const addStaffButton = event.target.closest("[data-add-staff]");
+    if (addStaffButton) {
+      const name = prompt("ຊື່ພະນັກງານໃໝ່");
+      if (!name) return;
+      staffMembers.push({ name: name.trim(), birthDate: "ບໍ່ມີຂໍ້ມູນ", duties: ["Sales"] });
+      saveSettings().then(() => {
+        renderPeopleManagePanel();
+        renderRoleMenu();
+      });
+      return;
+    }
+    const deleteStaffButton = event.target.closest("[data-delete-staff]");
+    if (!deleteStaffButton) return;
+    const index = Number(deleteStaffButton.dataset.deleteStaff);
+    staffMembers = staffMembers.filter((_, staffIndex) => staffIndex !== index);
+    saveSettings().then(() => {
+      renderPeopleManagePanel();
+      renderRoleMenu();
+    });
   });
   document.querySelector("#roleLoginForm").addEventListener("submit", (event) => {
     event.preventDefault();

@@ -53,3 +53,30 @@ This repo includes `render.yaml`. On Render:
 4. Deploy.
 
 The included disk keeps orders and uploads after deploy/restart.
+
+## Google Sheets Sync
+
+The server syncs orders, settings, and catalog data to Google Sheets when these environment variables are set:
+
+```bash
+GOOGLE_SHEETS_WEBHOOK_URL="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
+GOOGLE_SHEETS_WEBHOOK_SECRET="change-this-secret"
+```
+
+Local setup:
+
+1. Copy `.env.example` to `.env`.
+2. Paste your Apps Script Web App URL into `GOOGLE_SHEETS_WEBHOOK_URL`.
+3. Keep `GOOGLE_SHEETS_WEBHOOK_SECRET` the same as `WEBHOOK_SECRET` in `google-sheets-webhook.gs`.
+4. Restart the server.
+5. Open `/api/health`; `googleSheetsSync` should be `true`.
+
+Google Sheets setup:
+
+1. Open a Google Sheet.
+2. Go to Extensions > Apps Script.
+3. Paste the contents of `google-sheets-webhook.gs`.
+4. Change `WEBHOOK_SECRET` if needed.
+5. Deploy > New deployment > Web app.
+6. Set "Execute as" to yourself and "Who has access" to anyone with the link.
+7. Copy the Web App URL into the server environment.

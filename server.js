@@ -4,6 +4,7 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const rootDir = __dirname;
+loadEnvFile(path.join(rootDir, ".env"));
 const seedDataFile = path.join(rootDir, "data", "orders.json");
 const seedCatalogFile = path.join(rootDir, "data", "catalog.json");
 const seedSettingsFile = path.join(rootDir, "data", "settings.json");
@@ -21,12 +22,31 @@ const uploadsDir = process.env.UPLOADS_DIR
     ? path.join(persistentDataDir, "uploads")
     : path.join(rootDir, "uploads");
 const port = Number(process.env.PORT || 4173);
-const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+const adminPassword = process.env.ADMIN_PASSWORD || "KTSPORT2026";
 const publicBaseUrl = String(process.env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
 const googleSheetsWebhookUrl = String(process.env.GOOGLE_SHEETS_WEBHOOK_URL || "").trim();
 const googleSheetsWebhookSecret = String(process.env.GOOGLE_SHEETS_WEBHOOK_SECRET || "").trim();
 const sessions = new Map();
 const maxImageBytes = 25_000_000;
+
+function loadEnvFile(filePath) {
+  try {
+    const raw = require("fs").readFileSync(filePath, "utf8");
+    raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"))
+      .forEach((line) => {
+        const index = line.indexOf("=");
+        if (index === -1) return;
+        const key = line.slice(0, index).trim();
+        const value = line.slice(index + 1).trim().replace(/^["']|["']$/g, "");
+        if (key && process.env[key] === undefined) process.env[key] = value;
+      });
+  } catch {
+    // .env is optional for local development.
+  }
+}
 
 const mimeTypes = {
   ".html": "text/html;charset=utf-8",
@@ -171,8 +191,11 @@ function normalizeProduct(product, index) {
     String(product.image || images[0] || "").trim() ||
     "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=220&q=80";
   return {
+    productType: String(product.productType || "ເສື້ອກິລາ").trim(),
     productName: String(product.productName || `ສິນຄ້າ ${index + 1}`).trim(),
     shopSize: String(product.shopSize || "-").trim(),
+    patternQty: Math.max(0, toNumber(product.patternQty, 0)),
+    fabricQty: Math.max(0, toNumber(product.fabricQty, 0)),
     amount,
     price,
     totalPrice: Math.max(0, toNumber(product.totalPrice, amount * price)),
@@ -216,12 +239,22 @@ function normalizeSettings(settings = {}) {
   const rolePhotos = settings.rolePhotos && typeof settings.rolePhotos === "object" ? settings.rolePhotos : {};
   const staffPhotos = settings.staffPhotos && typeof settings.staffPhotos === "object" ? settings.staffPhotos : {};
   const staffPasscodes = settings.staffPasscodes && typeof settings.staffPasscodes === "object" ? settings.staffPasscodes : {};
+  const staffMembers = Array.isArray(settings.staffMembers) ? settings.staffMembers : [];
   return {
     adminNames: Array.from({ length: 10 }, (_, index) => normalizeAdminName(names[index], index)),
     shopPhone: String(settings.shopPhone || "8562077728239").replace(/\D/g, "") || "8562077728239",
     rolePhotos,
     staffPhotos,
     staffPasscodes,
+    staffMembers: staffMembers
+      .map((staff, index) => ({
+        name: String(staff.name || `Staff ${index + 1}`).trim(),
+        birthDate: String(staff.birthDate || "ບໍ່ມີຂໍ້ມູນ").trim(),
+        duties: Array.isArray(staff.duties)
+          ? staff.duties.map((duty) => String(duty || "").trim()).filter(Boolean)
+          : [],
+      }))
+      .filter((staff) => staff.name),
     rolePasscodes: {
       president: String(rolePasscodes.president || "1234"),
       vice: String(rolePasscodes.vice || "1234"),
@@ -281,6 +314,9 @@ function normalizeOrder(payload, existingOrder = {}) {
     customerName: String(payload.customerName || existingOrder.customerName || "ບໍ່ລະບຸຊື່...").trim(),
     phone: String(payload.phone || existingOrder.phone || "-").trim(),
     addressCf: String(payload.addressCf || existingOrder.addressCf || "-").trim(),
+    depositAmount: Math.max(0, toNumber(payload.depositAmount ?? existingOrder.depositAmount, 0)),
+    balanceAmount: Math.max(0, toNumber(payload.balanceAmount ?? existingOrder.balanceAmount, 0)),
+    grandTotal: Math.max(0, toNumber(payload.grandTotal ?? existingOrder.grandTotal, 0)),
     assignedAdmin: String(payload.assignedAdmin || existingOrder.assignedAdmin || "Admin 1").trim(),
     productionStatus: validStatuses.has(productionStatus) ? productionStatus : existingStatus || "PRODUCTION_ORDER",
     productImage: String(
@@ -291,6 +327,7 @@ function normalizeOrder(payload, existingOrder = {}) {
     ).trim(),
     productionHistory,
     products: products.map(normalizeProduct),
+    deletedAt: existingOrder.deletedAt || payload.deletedAt || null,
   };
 }
 
@@ -320,12 +357,19 @@ async function readOrders() {
           images: Array.isArray(item.images) ? item.images : [],
         }))
       : [];
+    orders[code].deletedAt = order.deletedAt || null;
   }
   return orders;
 }
 
 async function writeOrders(orders) {
   await fs.mkdir(path.dirname(dataFile), { recursive: true });
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  for (const [code, order] of Object.entries(orders)) {
+    if (order.deletedAt && new Date(order.deletedAt).getTime() < cutoff) {
+      delete orders[code];
+    }
+  }
   await fs.writeFile(dataFile, `${JSON.stringify(orders, null, 2)}\n`);
   await syncGoogleSheets("orders", { orders: Object.values(orders) });
 }
@@ -377,7 +421,7 @@ async function syncGoogleSheets(kind, data) {
   }
 }
 
-async function applyWorkflowStatus(order, status, note = "", dataUrls = []) {
+async function applyWorkflowStatus(order, status, note = "", dataUrls = [], actor = "System") {
   const nextStatus = normalizeStatus(status);
   if (!validStatuses.has(nextStatus)) {
     const error = new Error("INVALID_STATUS");
@@ -400,15 +444,22 @@ async function applyWorkflowStatus(order, status, note = "", dataUrls = []) {
 
   const historyItem = order.productionHistory.find((item) => item.status === nextStatus);
   if (historyItem) {
+    if (historyItem.actor && historyItem.actor !== actor && actor !== "Admin") {
+      const error = new Error("STATUS_LOCKED");
+      error.statusCode = 409;
+      throw error;
+    }
     historyItem.note = note || historyItem.note || "";
     historyItem.createdAt = new Date().toISOString();
     historyItem.images = [...(historyItem.images || []), ...images].slice(0, 10);
+    historyItem.actor = actor;
   } else {
     order.productionHistory.push({
       status: nextStatus,
       note,
       createdAt: new Date().toISOString(),
       images,
+      actor,
     });
   }
 
@@ -417,6 +468,14 @@ async function applyWorkflowStatus(order, status, note = "", dataUrls = []) {
   }
 
   return order;
+}
+
+function restorePreviousStatus(order, removedStatus) {
+  const removedIndex = workflowSteps.findIndex((step) => step.key === removedStatus);
+  const previous = [...(order.productionHistory || [])]
+    .filter((item) => workflowSteps.findIndex((step) => step.key === normalizeStatus(item.status)) < removedIndex)
+    .sort((a, b) => workflowSteps.findIndex((step) => step.key === normalizeStatus(b.status)) - workflowSteps.findIndex((step) => step.key === normalizeStatus(a.status)))[0];
+  order.productionStatus = normalizeStatus(previous?.status || "PRODUCTION_ORDER");
 }
 
 async function readStaticFile(filePath, res) {
@@ -544,7 +603,10 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/orders") {
     if (!requireAuth(req, res)) return;
     const orders = await readOrders();
-    const data = Object.values(orders).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const includeDeleted = url.searchParams.get("includeDeleted") === "1";
+    const data = Object.values(orders)
+      .filter((order) => includeDeleted || !order.deletedAt)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     return sendJson(res, 200, { data });
   }
 
@@ -552,7 +614,7 @@ async function handleApi(req, res, url) {
     if (!requireAuth(req, res)) return;
     const code = decodeURIComponent(workflowLinksMatch[1]).toUpperCase();
     const orders = await readOrders();
-    if (!orders[code]) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
+    if (!orders[code] || orders[code].deletedAt) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
     const baseUrl = requestBaseUrl(req);
     const data = workflowSteps.map((step, index) => {
       const token = workflowToken(code, step.key);
@@ -590,7 +652,7 @@ async function handleApi(req, res, url) {
     const code = decodeURIComponent(orderMatch[1]).toUpperCase();
     const orders = await readOrders();
     const order = orders[code];
-    if (!order) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
+    if (!order || order.deletedAt) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
     return sendJson(res, 200, { data: order });
   }
 
@@ -604,7 +666,7 @@ async function handleApi(req, res, url) {
     }
     const orders = await readOrders();
     const order = orders[code];
-    if (!order) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
+    if (!order || order.deletedAt) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
     return sendJson(res, 200, {
       data: {
         code,
@@ -628,9 +690,9 @@ async function handleApi(req, res, url) {
     const payload = await collectJson(req);
     const orders = await readOrders();
     const order = orders[code];
-    if (!order) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
+    if (!order || order.deletedAt) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
     try {
-      await applyWorkflowStatus(order, status, String(payload.note || "").trim(), payload.images);
+      await applyWorkflowStatus(order, status, String(payload.note || "").trim(), payload.images, String(payload.actor || "Staff"));
     } catch (error) {
       return sendJson(res, error.statusCode || 400, { error: error.message });
     }
@@ -644,7 +706,7 @@ async function handleApi(req, res, url) {
     const payload = await collectJson(req);
     const orders = await readOrders();
     const existingOrder = orders[code];
-    if (!existingOrder) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
+    if (!existingOrder || existingOrder.deletedAt) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
 
     orders[code] = normalizeOrder(payload, existingOrder);
     orders[code].code = code;
@@ -665,16 +727,57 @@ async function handleApi(req, res, url) {
 
     const orders = await readOrders();
     const order = orders[code];
-    if (!order) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
+    if (!order || order.deletedAt) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
 
     try {
-      await applyWorkflowStatus(order, status, note, payload.images);
+      await applyWorkflowStatus(order, status, note, payload.images, String(payload.actor || "Admin"));
     } catch (error) {
       return sendJson(res, error.statusCode || 400, { error: error.message });
     }
 
     await writeOrders(orders);
     return sendJson(res, 200, { data: order });
+  }
+
+  if (req.method === "DELETE" && statusMatch) {
+    if (!requireAuth(req, res)) return;
+    const code = decodeURIComponent(statusMatch[1]).toUpperCase();
+    const payload = await collectJson(req);
+    const status = normalizeStatus(payload.status);
+    const actor = String(payload.actor || "").trim();
+    const orders = await readOrders();
+    const order = orders[code];
+    if (!order) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
+    const historyItem = (order.productionHistory || []).find((item) => normalizeStatus(item.status) === status);
+    if (!historyItem) return sendJson(res, 404, { error: "STATUS_NOT_FOUND" });
+    if (historyItem.actor && actor && historyItem.actor !== actor && actor !== "Admin") {
+      return sendJson(res, 409, { error: "STATUS_LOCKED" });
+    }
+    order.productionHistory = order.productionHistory.filter((item) => normalizeStatus(item.status) !== status);
+    restorePreviousStatus(order, status);
+    await writeOrders(orders);
+    return sendJson(res, 200, { data: order });
+  }
+
+  if (req.method === "DELETE" && orderMatch) {
+    if (!requireAuth(req, res)) return;
+    const code = decodeURIComponent(orderMatch[1]).toUpperCase();
+    const orders = await readOrders();
+    if (!orders[code]) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
+    orders[code].deletedAt = new Date().toISOString();
+    await writeOrders(orders);
+    return sendJson(res, 200, { data: orders[code] });
+  }
+
+  const restoreMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/restore$/);
+  if (req.method === "POST" && restoreMatch) {
+    if (!requireAuth(req, res)) return;
+    const code = decodeURIComponent(restoreMatch[1]).toUpperCase();
+    const orders = await readOrders();
+    if (!orders[code]) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
+    orders[code].deletedAt = null;
+    await writeOrders(orders);
+    return sendJson(res, 200, { data: orders[code] });
   }
 
   return sendJson(res, 404, { error: "API_NOT_FOUND" });

@@ -119,12 +119,14 @@ function renderOrder(order) {
     <dt>ຊື່ຜູ້ສັ່ງຊື້:</dt><dd>${escapeHtml(order.customerName)}</dd>
     <dt>ເບີໂທລະສັບ:</dt><dd>${escapeHtml(order.phone)}</dd>
     <dt>ທີ່ຢູ່ຈັດສົ່ງ:</dt><dd>${escapeHtml(order.addressCf)}</dd>
-    <dt>ລວມຍອດ:</dt><dd>${currency(total)}</dd>
+    <dt>ມັດຈຳ:</dt><dd>${currency(order.depositAmount || 0)}</dd>
+    <dt>ຍັງຄ້າງ:</dt><dd>${currency(order.balanceAmount || 0)}</dd>
+    <dt>ລວມຍອດ:</dt><dd>${currency(order.grandTotal || total)}</dd>
   `;
   document.querySelector("#quickSummary").innerHTML = `
     <div><span>ສະຖານະ</span><strong>${escapeHtml(statusLabel(order.productionStatus))}</strong></div>
     <div><span>ສິນຄ້າ</span><strong>${order.products.length}</strong></div>
-    <div><span>ລວມຍອດ</span><strong>${currency(total)}</strong></div>
+    <div><span>ລວມຍອດ</span><strong>${currency(order.grandTotal || total)}</strong></div>
   `;
   document.querySelector("#publicHistoryList").innerHTML = (order.productionHistory || [])
     .map(
@@ -134,6 +136,7 @@ function renderOrder(order) {
         <li>
           <strong>${escapeHtml(statusLabel(item.status))}</strong>
           <span>${formatDateTime(item.createdAt)}</span>
+          ${item.actor ? `<p>ຜູ້ເຮັດ: ${escapeHtml(item.actor)}</p>` : ""}
           ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
           ${
             historyImages.length
@@ -170,7 +173,9 @@ function renderOrder(order) {
             <img src="${images[0] || item.image}" alt="${escapeHtml(item.productName)}" onerror="this.src='./assets/kt-sport-logo.jpg'" />
             <div>
               <strong>${escapeHtml(item.productName)}</strong>
+              <div class="product-meta">ປະເພດ: ${escapeHtml(item.productType || "-")}</div>
               <div class="product-meta">ໄຊ້/ຈຳນວນ: ${escapeHtml(item.shopSize)}</div>
+              <div class="product-meta">ແພັດເທິ້ນ: ${escapeHtml(item.patternQty || 0)} · ຜືນ: ${escapeHtml(item.fabricQty || 0)}</div>
               <div class="product-meta">ຈຳນວນລວມ: ${escapeHtml(item.amount)}</div>
               ${gifts}
               <div class="customer-gallery">

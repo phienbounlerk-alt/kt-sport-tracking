@@ -23,12 +23,14 @@
         <form id="loginForm" class="login-form">
           <label>
             Password
-            <input id="passwordInput" type="password" autocomplete="current-password" required autofocus />
+            <span class="password-field">
+              <input id="passwordInput" type="password" autocomplete="current-password" required autofocus />
+              <button id="togglePasswordButton" type="button" aria-label="Show password">👁</button>
+            </span>
           </label>
           <button type="submit">Login</button>
-          <p id="loginNotice" data-tone="muted">Default password: admin123</p>
+          <p id="loginNotice" data-tone="muted">ກະລຸນາໃສ່ລະຫັດເພື່ອເຂົ້າລະບົບ</p>
         </form>
-        <a class="tracking-link login-tracking-link" href="./index.html">ກັບໄປ tracking</a>
       </section>
     </main>
     <script src="./login.js"></script>

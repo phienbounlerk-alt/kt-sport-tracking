@@ -33,4 +33,10 @@ async function login(event) {
 }
 
 document.querySelector("#loginForm").addEventListener("submit", login);
+document.querySelector("#togglePasswordButton").addEventListener("click", () => {
+  const input = document.querySelector("#passwordInput");
+  const isHidden = input.type === "password";
+  input.type = isHidden ? "text" : "password";
+  document.querySelector("#togglePasswordButton").setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+});
 checkSession();

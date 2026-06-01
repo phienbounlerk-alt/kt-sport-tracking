@@ -31,6 +31,50 @@ textarea {
   font: inherit;
 }
 
+.password-field {
+  display: grid;
+  grid-template-columns: 1fr 42px;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.password-field input {
+  margin-top: 0;
+}
+
+.password-field button {
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+}
+
+.danger-button,
+.staff-delete-button {
+  border-color: #ffd1d1;
+  color: #b42318;
+  background: #fff4f5;
+}
+
+.people-manage-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.people-manage-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(120px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
 .topbar {
   position: sticky;
   top: 0;

@@ -82,6 +82,7 @@
         </div>
         <div class="heading-actions">
           <button id="changeRoleButton" type="button">ປ່ຽນເມນູ</button>
+          <button id="trashToggleButton" type="button">ຖັງຂີ້ເຫຍື່ອ</button>
           <button id="newOrderButton" type="button">ສ້າງບິນໃໝ່</button>
         </div>
       </section>
@@ -100,6 +101,7 @@
 
       <section id="adminStats" class="admin-stats" aria-label="Order summary"></section>
       <section id="adminRoleBreakdown" class="admin-breakdown-panel"></section>
+      <section id="peopleManagePanel" class="admin-breakdown-panel" hidden></section>
 
       <section class="admin-menu-panel" aria-label="Admin menu">
         <div>
@@ -156,12 +158,24 @@
                 <input id="receiveDateInput" name="receiveDate" type="date" />
               </label>
               <label>
+                ມັດຈຳ
+                <input id="depositAmountInput" name="depositAmount" type="number" min="0" />
+              </label>
+              <label>
+                ຍັງຄ້າງ
+                <input id="balanceAmountInput" name="balanceAmount" type="number" min="0" />
+              </label>
+              <label>
+                ລວມທັງໝົດ
+                <input id="grandTotalInput" name="grandTotal" type="number" min="0" />
+              </label>
+              <label>
                 Admin ຜູ້ຮັບຜິດຊອບ
                 <select id="assignedAdminInput" name="assignedAdmin"></select>
               </label>
               <label>
                 ຊື່ລູກຄ້າ
-                <input id="customerNameInput" name="customerName" required />
+                <input id="customerNameInput" name="customerName" placeholder="ບໍ່ບັງຄັບ" />
               </label>
               <label>
                 ເບີໂທ
@@ -181,6 +195,8 @@
 
             <div class="form-actions">
               <button id="saveOrderButton" type="submit">ບັນທຶກບິນ</button>
+              <button id="deleteOrderButton" class="danger-button" type="button">ລົບໄປຖັງຂີ້ເຫຍື່ອ</button>
+              <button id="restoreOrderButton" type="button" hidden>ກູ້ຄືນບິນ</button>
               <span id="adminPageNotice" data-tone="muted">ກຳລັງດຶງຂໍ້ມູນ...</span>
             </div>
           </form>
