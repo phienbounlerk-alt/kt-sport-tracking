@@ -1760,14 +1760,6 @@ function setupAdmin() {
       );
       return;
     }
-    const addStaffButton = event.target.closest("[data-add-staff]");
-    if (addStaffButton) {
-      return;
-    }
-    const deleteStaffButton = event.target.closest("[data-delete-staff]");
-    if (deleteStaffButton) {
-      return;
-    }
     const touchLoginButton = event.target.closest("[data-staff-touch-login]");
     if (touchLoginButton) {
       unlockStaffWithTouchId(activeStaffIndex);
@@ -1815,12 +1807,7 @@ function setupAdmin() {
     setRoleNotice(`ເຂົ້າໜ້າພະນັກງານສຳເລັດ`, "success");
   });
   document.querySelector("#peopleManagePanel").addEventListener("click", (event) => {
-    const addStaffButton = event.target.closest("[data-add-staff]");
-    if (addStaffButton) {
-      return;
-    }
-    const deleteStaffButton = event.target.closest("[data-delete-staff]");
-    if (deleteStaffButton) return;
+    event.preventDefault();
   });
   document.querySelector("#roleLoginForm").addEventListener("submit", (event) => {
     event.preventDefault();
