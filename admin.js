@@ -221,6 +221,25 @@ function staffStatuses(staff) {
   return [...new Set((staff.duties || []).map((duty) => dutyStatusMap[duty]).filter(Boolean))];
 }
 
+function statusIndex(status) {
+  return productionSteps.findIndex((step) => step.key === status);
+}
+
+function latestCompletedStatus(order) {
+  const currentIndex = statusIndex(order?.productionStatus || "PRODUCTION_ORDER");
+  const historyIndex = (order?.productionHistory || []).reduce(
+    (highestIndex, item) => Math.max(highestIndex, statusIndex(item.status)),
+    -1,
+  );
+  const latestIndex = Math.max(0, currentIndex, historyIndex);
+  return productionSteps[latestIndex]?.key || "PRODUCTION_ORDER";
+}
+
+function nextOpenStatus(order) {
+  const currentIndex = Math.max(0, statusIndex(latestCompletedStatus(order)));
+  return productionSteps[currentIndex + 1]?.key || null;
+}
+
 function staffDutyForStatus(staff, status) {
   return (staff.duties || []).find((duty) => dutyStatusMap[duty] === status) || statusLabel(status);
 }
@@ -356,10 +375,12 @@ function staffTaskMarkup(staff, staffIndex) {
   const rows = orders
     .filter((order) => order.productionStatus !== "COMPLETED")
     .flatMap((order) =>
-      statuses.map((status) => {
-        const done = (order.productionHistory || []).some((item) => item.status === status);
-        return { order, status, done };
-      }),
+      statuses
+        .filter((status) => status === nextOpenStatus(order))
+        .map((status) => {
+          const done = (order.productionHistory || []).some((item) => item.status === status);
+          return { order, status, done };
+        }),
     );
   return `
     <div class="staff-task-panel">
@@ -435,6 +456,7 @@ function setRoleWorkspace(roleKey) {
   document.querySelector("#roleToolsTitle").textContent = `ຕັ້ງຄ່າລະຫັດ: ${roleDisplay(role)}`;
   document.querySelector(".role-tools-panel").hidden = Boolean(role.noPasscode);
   document.querySelector("#registerTouchIdButton").hidden = !role.canUseTouchId || !window.PublicKeyCredential;
+  document.querySelector("#workflowPanel").hidden = role.key === "admin";
   renderStats();
   renderOrdersList();
 }
@@ -741,10 +763,12 @@ function setAdminView(menu) {
     activeMenu = assigneeNames()[0];
   }
   const catalogMode = activeMenu === "CATALOG";
+  const salesMode = roleInfo(activeRole).key === "admin";
   document.querySelector("#ordersPanel").hidden = catalogMode;
   document.querySelector("#orderEditorPanel").hidden = catalogMode;
   document.querySelector("#catalogPanel").hidden = !catalogMode;
   document.querySelector("#newOrderButton").hidden = catalogMode;
+  document.querySelector("#workflowPanel").hidden = salesMode || catalogMode;
   renderAdminMenu();
   if (catalogMode) {
     renderCatalogEditor();
@@ -852,7 +876,7 @@ function renderOrdersList() {
   renderAdminMenu();
 
   if (!visibleOrders.some((order) => order.code === activeCode)) {
-    fillForm(visibleOrders[0] || emptyOrder(activeAdminName()));
+    fillForm(visibleOrders[0] || emptyOrder(activeAdminName()), false);
   }
 
   if (!visibleOrders.length) {
@@ -874,6 +898,11 @@ function renderOrdersList() {
 }
 
 function renderWorkflow(order) {
+  if (roleInfo(activeRole).key === "admin") {
+    document.querySelector("#workflowPanel").hidden = true;
+    return;
+  }
+  document.querySelector("#workflowPanel").hidden = false;
   const currentStatus = order?.productionStatus || "PRODUCTION_ORDER";
   document.querySelector("#workflowCurrentBadge").textContent = statusLabel(currentStatus);
   document.querySelector("#workflowStatusSelect").value = currentStatus;
@@ -1093,7 +1122,7 @@ function collectProducts() {
   });
 }
 
-function fillForm(order) {
+function fillForm(order, shouldRenderList = true) {
   activeCode = order.code || null;
   document.querySelector("#formTitle").textContent = activeCode ? `ແກ້ບິນ ${activeCode}` : "ສ້າງບິນໃໝ່";
   document.querySelector("#codeInput").value = order.code || "";
@@ -1117,7 +1146,7 @@ function fillForm(order) {
     document.querySelector("#copyTrackingButton").disabled = true;
   }
   renderWorkflow(order);
-  renderOrdersList();
+  if (shouldRenderList) renderOrdersList();
 }
 
 function collectOrderPayload() {
@@ -1147,6 +1176,7 @@ async function loadOrders() {
   const result = await response.json();
   orders = result.data;
   renderRoleMenuSummary();
+  if (staffPanelOpen) renderStaffPanel();
   renderOrdersList();
   setAdminNotice("ດຶງຂໍ້ມູນສຳເລັດ", "success");
 }
