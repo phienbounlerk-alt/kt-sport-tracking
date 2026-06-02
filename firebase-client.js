@@ -15,15 +15,13 @@ import {
   query,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// TODO: Replace these values with your Firebase Web App config.
-// Firebase Console -> Project settings -> General -> Your apps -> Web app config.
 export const firebaseConfig = {
-  apiKey: "PASTE_FIREBASE_API_KEY_HERE",
-  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  storageBucket: "PASTE_PROJECT_ID.appspot.com",
-  messagingSenderId: "PASTE_MESSAGING_SENDER_ID",
-  appId: "PASTE_FIREBASE_APP_ID",
+  apiKey: "AIzaSyASTfb1DC5Opjxoh6493uCpt_uoPQcEp-k",
+  authDomain: "kt-sport-order-tracker.firebaseapp.com",
+  projectId: "kt-sport-order-tracker",
+  storageBucket: "kt-sport-order-tracker.firebasestorage.app",
+  messagingSenderId: "1068252178506",
+  appId: "1:1068252178506:web:be5b9d5120d4af52e35eb3",
 };
 
 const missingConfig = Object.values(firebaseConfig).some((value) => String(value).startsWith("PASTE_"));
