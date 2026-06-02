@@ -1205,7 +1205,7 @@ async function uploadProductImage(input) {
     uploadedUrls.push(result.url);
   }
 
-  const nextImages = [...currentImages, ...uploadedUrls].slice(0, 10);
+  const nextImages = [...uploadedUrls, ...currentImages].slice(0, 10);
   imagesInput.value = JSON.stringify(nextImages);
   editor.querySelector('[data-product-field="image"]').value = nextImages[0] || defaultProductImage;
   renderProducts(collectProducts());
