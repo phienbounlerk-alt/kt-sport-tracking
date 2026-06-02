@@ -487,6 +487,12 @@ async function syncFirestoreOrders(orders) {
   }
 }
 
+async function backfillFirestoreOrders() {
+  if (!firestoreSyncEnabled()) return;
+  const orders = await readOrders();
+  await syncFirestoreOrders(Object.values(orders));
+}
+
 async function readSettings() {
   await ensureJsonFile(settingsFile, seedSettingsFile);
   const raw = await fs.readFile(settingsFile, "utf8");
@@ -973,6 +979,7 @@ async function start() {
   await readOrders();
   await readCatalog();
   await readSettings();
+  await backfillFirestoreOrders();
   server.listen(port, "0.0.0.0", () => {
     console.log(`KT SPORT server running at http://0.0.0.0:${port}`);
     console.log(`Data file: ${dataFile}`);
