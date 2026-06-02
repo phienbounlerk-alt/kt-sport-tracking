@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="lo">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KT SPORT - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand brand-link" href="./index.html">
+        <div class="brand-mark"><img src="./assets/kt-sport-logo.jpg" alt="KT SPORT logo" /></div>
+        <div>
+          <strong>KT SPORT</strong>
+          <span>Dashboard</span>
+        </div>
+      </a>
+      <nav class="top-nav">
+        <a class="nav-link" href="./index.html">KT SPORT</a>
+        <button id="logoutButton" class="nav-link" type="button">Logout</button>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="section-block">
+        <div class="section-heading">
+          <p>Real-time</p>
+          <h1>Orders Dashboard</h1>
+          <span id="dashboardStatus">ກຳລັງໂຫຼດຂໍ້ມູນຈາກ Firebase...</span>
+        </div>
+        <div id="ordersRealtimeList" class="order-grid"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import {
+        listenForAuth,
+        listenToOrdersRealtime,
+        renderOrdersToElement,
+        signOutCurrentUser,
+      } from "./firebase-client.js";
+
+      const status = document.querySelector("#dashboardStatus");
+      const ordersList = document.querySelector("#ordersRealtimeList");
+      let stopOrdersListener = null;
+
+      listenForAuth((user) => {
+        if (!user) {
+          window.location.href = "./login.html";
+          return;
+        }
+
+        if (stopOrdersListener) {
+          return;
+        }
+
+        stopOrdersListener = listenToOrdersRealtime({
+          onAll(orders) {
+            renderOrdersToElement(ordersList, orders);
+            status.textContent = `ອັບເດດສົດ ${orders.length} ອໍເດີ້`;
+          },
+          onAdded(order) {
+            console.log("Order added:", order);
+          },
+          onModified(order) {
+            console.log("Order modified:", order);
+          },
+          onError(error) {
+            status.textContent = error.message || "Firebase sync ຜິດພາດ";
+          },
+        });
+      });
+
+      document.querySelector("#logoutButton").addEventListener("click", async () => {
+        await signOutCurrentUser();
+        window.location.href = "./login.html";
+      });
+    </script>
+  </body>
+</html>
