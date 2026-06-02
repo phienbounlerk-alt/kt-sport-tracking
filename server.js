@@ -811,6 +811,22 @@ async function serveStatic(req, res, url) {
     res.end();
     return;
   }
+
+  const normalizedRequest = path.posix.normalize(requestedPath);
+  const publicExtensions = new Set([".html", ".css", ".js", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]);
+  if (
+    normalizedRequest.split("/").some((part) => part.startsWith(".")) ||
+    normalizedRequest.startsWith("/data/") ||
+    normalizedRequest === "/firebase.json" ||
+    normalizedRequest === "/firestore.rules" ||
+    normalizedRequest === "/package.json" ||
+    !publicExtensions.has(path.extname(normalizedRequest))
+  ) {
+    res.writeHead(404);
+    res.end("Not found");
+    return;
+  }
+
   const filePath = path.normalize(path.join(rootDir, requestedPath));
 
   if (!filePath.startsWith(rootDir)) {
