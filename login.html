@@ -22,13 +22,9 @@
         <h1>ເຂົ້າລະບົບ</h1>
         <form id="loginForm" class="login-form">
           <label>
-            Email
-            <input id="emailInput" type="email" autocomplete="email" placeholder="name@example.com" required autofocus />
-          </label>
-          <label>
             Password
             <span class="password-field">
-              <input id="passwordInput" type="password" autocomplete="current-password" required />
+              <input id="passwordInput" type="password" autocomplete="current-password" required autofocus />
               <button id="togglePasswordButton" type="button" aria-label="Show password">👁</button>
             </span>
           </label>
@@ -40,9 +36,8 @@
     <script type="module">
       import { listenForAuth, signInAndGetProfile } from "./firebase-client.js";
 
-      const STAFF_ROLES = new Set(["staff", "admin", "manager", "president", "vice_president", "accounting", "sale"]);
+      const firebaseSyncEmail = "kotastoreinfo@gmail.com";
       const loginForm = document.querySelector("#loginForm");
-      const emailInput = document.querySelector("#emailInput");
       const passwordInput = document.querySelector("#passwordInput");
       const togglePasswordButton = document.querySelector("#togglePasswordButton");
       const loginButton = loginForm.querySelector('button[type="submit"]');
@@ -53,27 +48,39 @@
         notice.dataset.tone = tone;
       }
 
-      function routeByRole(role) {
-        if (STAFF_ROLES.has(String(role || "").toLowerCase())) {
-          window.location.href = "./dashboard.html";
-          return;
+      async function checkSession() {
+        const response = await fetch("/api/session");
+        const result = await response.json();
+        if (result.authenticated) {
+          window.location.href = "/admin.html";
         }
-        if (String(role || "").toLowerCase() === "customer") {
-          window.location.href = "./index.html";
-          return;
-        }
-        setLoginNotice("ບັນຊີນີ້ຍັງບໍ່ມີ role ໃນ Firebase users", "error");
       }
 
       loginForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         loginButton.disabled = true;
-        setLoginNotice("ກຳລັງກວດສອບກັບ Firebase...", "muted");
+        setLoginNotice("ກຳລັງ login...", "muted");
 
         try {
-          const { profile } = await signInAndGetProfile(emailInput.value, passwordInput.value);
+          const response = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: passwordInput.value }),
+          });
+
+          if (!response.ok) {
+            setLoginNotice("Password ບໍ່ຖືກຕ້ອງ", "error");
+            return;
+          }
+
+          try {
+            await signInAndGetProfile(firebaseSyncEmail, passwordInput.value);
+          } catch (firebaseError) {
+            console.warn("Firebase login skipped:", firebaseError);
+          }
+
           setLoginNotice("Login ສຳເລັດ", "success");
-          routeByRole(profile.role);
+          window.location.href = "/admin.html";
         } catch (error) {
           setLoginNotice(error.message || "Login ບໍ່ຜ່ານ", "error");
           alert(error.message || "Login ບໍ່ຜ່ານ");
@@ -93,6 +100,8 @@
           setLoginNotice("ມີ session Firebase ແລ້ວ, ກະລຸນາ login ອີກຄັ້ງເພື່ອເຊັກ role", "muted");
         }
       });
+
+      checkSession();
     </script>
   </body>
 </html>
