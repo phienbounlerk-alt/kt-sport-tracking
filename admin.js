@@ -1209,7 +1209,17 @@ async function uploadProductImage(input) {
   imagesInput.value = JSON.stringify(nextImages);
   editor.querySelector('[data-product-field="image"]').value = nextImages[0] || defaultProductImage;
   renderProducts(collectProducts());
-  setAdminNotice(`Upload ຮູບສຳເລັດ ${uploadedUrls.length} ຮູບ ກົດບັນທຶກບິນເພື່ອໃຊ້`, "success");
+  input.value = "";
+
+  if (!activeCode) {
+    setAdminNotice(`Upload ຮູບສຳເລັດ ${uploadedUrls.length} ຮູບ ກົດບັນທຶກບິນເພື່ອໃຊ້`, "success");
+    return;
+  }
+
+  const saved = await persistActiveOrder();
+  if (saved) {
+    setAdminNotice(`Upload ຮູບສຳເລັດ ${uploadedUrls.length} ຮູບ ແລະບັນທຶກບິນແລ້ວ`, "success");
+  }
 }
 
 function collectProducts() {
@@ -1284,6 +1294,35 @@ function collectOrderPayload() {
     productImage: firstProduct?.image || defaultProductImage,
     products,
   };
+}
+
+async function persistActiveOrder() {
+  if (!activeCode || !canEditOrders()) return null;
+  const payload = collectOrderPayload();
+  const response = await fetch(`/api/orders/${encodeURIComponent(activeCode)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (response.status === 401) {
+    window.location.href = "/login.html";
+    return null;
+  }
+  if (!response.ok) {
+    setAdminNotice("Upload ຮູບໄດ້ ແຕ່ບັນທຶກບິນບໍ່ສຳເລັດ ກະລຸນາກົດບັນທຶກອີກຄັ້ງ", "error");
+    return null;
+  }
+
+  const result = await response.json();
+  activeCode = result.data.code;
+  orders = orders.map((order) => (order.code === result.data.code ? result.data : order));
+  if (!orders.some((order) => order.code === result.data.code)) {
+    orders.unshift(result.data);
+  }
+  fillForm(result.data);
+  renderRoleMenuSummary();
+  return result.data;
 }
 
 async function loadOrders({ silent = false } = {}) {
@@ -1475,12 +1514,14 @@ async function uploadCatalogImage(input) {
   row.querySelector("img").src = result.url;
   syncCatalogRow(row);
   input.value = "";
-  setCatalogNotice("Upload ຮູບສຳເລັດ ກົດບັນທຶກ shop ເພື່ອໃຊ້ຮູບນີ້", "success");
+  const saved = await persistCatalog();
+  if (saved) {
+    setCatalogNotice("Upload ຮູບສຳເລັດ ແລະບັນທຶກ shop ແລ້ວ", "success");
+  }
 }
 
-async function saveCatalog() {
+async function persistCatalog() {
   syncCatalogFromDom();
-  setCatalogNotice("ກຳລັງບັນທຶກ shop...", "muted");
   const response = await fetch("/api/admin/catalog", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -1492,12 +1533,19 @@ async function saveCatalog() {
   }
   if (!response.ok) {
     setCatalogNotice("ບັນທຶກສິນຄ້າບໍ່ສຳເລັດ", "error");
-    return;
+    return null;
   }
   const result = await response.json();
   catalogItems = result.data;
   renderCatalogEditor();
   renderAdminMenu();
+  return result.data;
+}
+
+async function saveCatalog() {
+  setCatalogNotice("ກຳລັງບັນທຶກ shop...", "muted");
+  const saved = await persistCatalog();
+  if (!saved) return;
   setCatalogNotice("ບັນທຶກສິນຄ້າ shop ສຳເລັດ", "success");
 }
 
