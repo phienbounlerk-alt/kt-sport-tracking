@@ -26,8 +26,15 @@ const adminPassword = process.env.ADMIN_PASSWORD || "KTSPORT2026";
 const publicBaseUrl = String(process.env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
 const googleSheetsWebhookUrl = String(process.env.GOOGLE_SHEETS_WEBHOOK_URL || "").trim();
 const googleSheetsWebhookSecret = String(process.env.GOOGLE_SHEETS_WEBHOOK_SECRET || "").trim();
+const firebaseProjectId = String(process.env.FIREBASE_PROJECT_ID || "kt-sport-order-tracker").trim();
+const firebaseWebApiKey = String(
+  process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY || "AIzaSyASTfb1DC5Opjxoh6493uCpt_uoPQcEp-k",
+).trim();
+const firebaseSyncEmail = String(process.env.FIREBASE_SYNC_EMAIL || "").trim();
+const firebaseSyncPassword = String(process.env.FIREBASE_SYNC_PASSWORD || "").trim();
 const sessions = new Map();
 const maxImageBytes = 25_000_000;
+let firebaseAuthCache = null;
 
 function loadEnvFile(filePath) {
   try {
@@ -371,7 +378,113 @@ async function writeOrders(orders) {
     }
   }
   await fs.writeFile(dataFile, `${JSON.stringify(orders, null, 2)}\n`);
+  await syncFirestoreOrders(Object.values(orders));
   await syncGoogleSheets("orders", { orders: Object.values(orders) });
+}
+
+function firestoreSyncEnabled() {
+  return Boolean(firebaseProjectId && firebaseWebApiKey && firebaseSyncEmail && firebaseSyncPassword);
+}
+
+async function getFirebaseIdToken() {
+  if (!firestoreSyncEnabled()) return "";
+  if (firebaseAuthCache && firebaseAuthCache.expiresAt > Date.now() + 60_000) {
+    return firebaseAuthCache.idToken;
+  }
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(firebaseWebApiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: firebaseSyncEmail,
+        password: firebaseSyncPassword,
+        returnSecureToken: true,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Firebase Auth sync login failed: ${response.status} ${message.slice(0, 120)}`);
+  }
+
+  const data = await response.json();
+  firebaseAuthCache = {
+    idToken: data.idToken,
+    expiresAt: Date.now() + Number(data.expiresIn || 3600) * 1000,
+  };
+  return firebaseAuthCache.idToken;
+}
+
+function toFirestoreValue(value) {
+  if (value === undefined) return null;
+  if (value === null) return { nullValue: null };
+  if (typeof value === "boolean") return { booleanValue: value };
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? { integerValue: String(value) } : { doubleValue: value };
+  }
+  if (typeof value === "string") return { stringValue: value };
+  if (Array.isArray(value)) {
+    return { arrayValue: { values: value.map(toFirestoreValue).filter(Boolean) } };
+  }
+  if (typeof value === "object") {
+    return {
+      mapValue: {
+        fields: Object.fromEntries(
+          Object.entries(value)
+            .map(([key, entryValue]) => [key, toFirestoreValue(entryValue)])
+            .filter(([, entryValue]) => Boolean(entryValue)),
+        ),
+      },
+    };
+  }
+  return { stringValue: String(value) };
+}
+
+function orderToFirestoreDocument(order) {
+  const normalized = {
+    ...order,
+    id: order.code,
+    updatedAt: order.updatedAt || order.createdAt || new Date().toISOString(),
+  };
+  return {
+    fields: Object.fromEntries(
+      Object.entries(normalized)
+        .map(([key, value]) => [key, toFirestoreValue(value)])
+        .filter(([, value]) => Boolean(value)),
+    ),
+  };
+}
+
+async function syncFirestoreOrders(orders) {
+  if (!firestoreSyncEnabled()) return;
+  try {
+    const idToken = await getFirebaseIdToken();
+    await Promise.all(
+      orders.map(async (order) => {
+        if (!order.code) return;
+        const response = await fetch(
+          `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/(default)/documents/orders/${encodeURIComponent(order.code)}`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(orderToFirestoreDocument(order)),
+          },
+        );
+        if (!response.ok) {
+          const message = await response.text();
+          throw new Error(`Firestore order sync failed: ${order.code} ${response.status} ${message.slice(0, 120)}`);
+        }
+      }),
+    );
+  } catch (error) {
+    console.warn(error.message);
+  }
 }
 
 async function readSettings() {
@@ -543,6 +656,8 @@ async function handleApi(req, res, url) {
       settingsFile,
       uploadsDir,
       googleSheetsSync: Boolean(googleSheetsWebhookUrl),
+      firestoreSync: firestoreSyncEnabled(),
+      firebaseProjectId,
     });
   }
 

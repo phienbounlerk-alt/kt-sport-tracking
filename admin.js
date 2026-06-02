@@ -101,6 +101,7 @@ let staffPanelOpen = false;
 let activeStaffIndex = null;
 let unlockedStaffIndex = null;
 let ordersSyncTimer = null;
+let firestoreOrdersUnsubscribe = null;
 let catalogItems = [];
 let catalogSearch = "";
 let filters = {
@@ -1350,6 +1351,43 @@ async function loadOrders({ silent = false } = {}) {
   if (!silent) setAdminNotice("ດຶງຂໍ້ມູນສຳເລັດ", "success");
 }
 
+function normalizeRealtimeOrder(order) {
+  const normalized = { ...order };
+  if (!normalized.code && normalized.id) normalized.code = normalized.id;
+  if (normalized.updatedAt && typeof normalized.updatedAt.toDate === "function") {
+    normalized.updatedAt = normalized.updatedAt.toDate().toISOString();
+  }
+  if (normalized.createdAt && typeof normalized.createdAt.toDate === "function") {
+    normalized.createdAt = normalized.createdAt.toDate().toISOString();
+  }
+  normalized.deletedAt = normalized.deletedAt || null;
+  normalized.productionHistory = Array.isArray(normalized.productionHistory) ? normalized.productionHistory : [];
+  return normalized;
+}
+
+async function startFirestoreOrdersSync() {
+  if (firestoreOrdersUnsubscribe) return;
+  try {
+    const { listenToOrdersRealtime } = await import("./firebase-client.js");
+    firestoreOrdersUnsubscribe = listenToOrdersRealtime({
+      onAll(realtimeOrders) {
+        if (!Array.isArray(realtimeOrders) || !realtimeOrders.length) return;
+        orders = realtimeOrders.map(normalizeRealtimeOrder);
+        renderRoleMenuSummary();
+        if (staffPanelOpen) renderStaffPanel();
+        renderOrdersList();
+        const activeOrder = currentOrder();
+        if (activeOrder) fillForm(activeOrder);
+      },
+      onError(error) {
+        console.warn("Firestore realtime orders disabled:", error.message);
+      },
+    });
+  } catch (error) {
+    console.warn("Firestore realtime orders unavailable:", error.message);
+  }
+}
+
 async function loadSettings() {
   const response = await fetch("/api/settings");
   if (!response.ok) throw new Error("SETTINGS_FAILED");
@@ -2022,6 +2060,7 @@ function setupAdmin() {
       fillForm(emptyOrder());
       return loadOrders();
     })
+    .then(() => startFirestoreOrdersSync())
     .catch(() => setAdminNotice("ດຶງຂໍ້ມູນບໍ່ໄດ້", "error"));
 }
 

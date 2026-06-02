@@ -71,6 +71,23 @@ Local setup:
 4. Restart the server.
 5. Open `/api/health`; `googleSheetsSync` should be `true`.
 
+## Firestore order sync
+
+The server can also mirror every order write to Firebase Firestore so logged-in company users see real-time updates from the `orders` collection.
+
+Set these Render environment variables:
+
+```bash
+FIREBASE_PROJECT_ID="kt-sport-order-tracker"
+FIREBASE_WEB_API_KEY="YOUR_FIREBASE_WEB_API_KEY"
+FIREBASE_SYNC_EMAIL="kotastoreinfo@gmail.com"
+FIREBASE_SYNC_PASSWORD="YOUR_FIREBASE_SYNC_USER_PASSWORD"
+```
+
+The sync email must exist in Firebase Authentication and have a matching `users/{uid}` Firestore document with `role: "admin"` or another back-office role allowed by `firestore.rules`.
+
+Open `/api/health`; `firestoreSync` should be `true`.
+
 Google Sheets setup:
 
 1. Open a Google Sheet.
