@@ -979,11 +979,13 @@ async function start() {
   await readOrders();
   await readCatalog();
   await readSettings();
-  await backfillFirestoreOrders();
   server.listen(port, "0.0.0.0", () => {
     console.log(`KT SPORT server running at http://0.0.0.0:${port}`);
     console.log(`Data file: ${dataFile}`);
     console.log(`Uploads: ${uploadsDir}`);
+    backfillFirestoreOrders().catch((error) => {
+      console.warn(`Firestore backfill failed: ${error.message}`);
+    });
   });
 }
 
