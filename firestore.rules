@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function currentRole() {
+      return currentUser().role;
+    }
+
+    function isBackOffice() {
+      return signedIn()
+        && currentRole() in [
+          'admin',
+          'staff',
+          'manager',
+          'president',
+          'vice_president',
+          'accounting'
+        ];
+    }
+
+    function canManageUsers() {
+      return signedIn()
+        && currentRole() in ['admin', 'president', 'vice_president'];
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isBackOffice());
+      allow create, update, delete: if canManageUsers();
+    }
+
+    match /orders/{orderId} {
+      allow read: if signedIn();
+      allow create, update: if isBackOffice();
+      allow delete: if canManageUsers();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
