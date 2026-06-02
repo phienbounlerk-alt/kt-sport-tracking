@@ -926,6 +926,12 @@ async function serveStatic(req, res, url) {
     return;
   }
 
+  if (url.pathname === "/" && !url.searchParams.has("code")) {
+    res.writeHead(302, { Location: "/login.html" });
+    res.end();
+    return;
+  }
+
   const requestedPath = url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname);
   if (requestedPath === "/admin.html" && !isAuthenticated(req)) {
     res.writeHead(302, { Location: "/login.html" });
