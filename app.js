@@ -128,34 +128,8 @@ function renderOrder(order) {
     <div><span>ສິນຄ້າ</span><strong>${order.products.length}</strong></div>
     <div><span>ລວມຍອດ</span><strong>${currency(order.grandTotal || total)}</strong></div>
   `;
-  document.querySelector("#publicHistoryList").innerHTML = (order.productionHistory || [])
-    .map(
-      (item) => {
-        const historyImages = Array.isArray(item.images) ? item.images : [];
-        return `
-        <li>
-          <strong>${escapeHtml(statusLabel(item.status))}</strong>
-          <span>${formatDateTime(item.createdAt)}</span>
-          ${item.actor ? `<p>ຜູ້ເຮັດ: ${escapeHtml(item.actor)}</p>` : ""}
-          ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
-          ${
-            historyImages.length
-              ? `<div class="history-gallery">${historyImages
-                  .map(
-                    (image) => `
-                      <a href="${escapeHtml(image)}" target="_blank">
-                        <img src="${escapeHtml(image)}" alt="${escapeHtml(statusLabel(item.status))}" onerror="this.src='./assets/kt-sport-logo.jpg'" />
-                      </a>
-                    `,
-                  )
-                  .join("")}</div>`
-              : ""
-          }
-        </li>
-      `;
-      },
-    )
-    .join("");
+  document.querySelector(".history-panel").hidden = true;
+  document.querySelector("#publicHistoryList").innerHTML = "";
 
   document.querySelector("#productList").innerHTML = order.products
     .map((item) => {

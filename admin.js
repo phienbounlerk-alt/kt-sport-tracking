@@ -1,5 +1,6 @@
 const defaultProductImage =
   "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=220&q=80";
+const assetCacheVersion = Date.now();
 
 const productionSteps = [
   { key: "PRODUCTION_ORDER", label: "ອອກບິນຜະລິດ" },
@@ -310,6 +311,12 @@ function staffPhotoFor(staff, index) {
   return photos[staffPhotoKey(staff, index)] || photos[index] || "./assets/kt-sport-logo.jpg";
 }
 
+function cacheBustLocalImage(src) {
+  if (!src || !String(src).startsWith("/uploads/")) return src;
+  const separator = src.includes("?") ? "&" : "?";
+  return `${src}${separator}v=${assetCacheVersion}`;
+}
+
 function renderRoleMenu() {
   const visibleRoles = roleDefinitions.filter((role) => !role.engineerOnly);
   document.querySelector("#roleMenuTabs").innerHTML = [
@@ -318,7 +325,7 @@ function renderRoleMenu() {
       (role, index) => `
         <div class="role-menu-card ${selectedRole === role.key && !staffPanelOpen ? "active" : ""}" data-role-key="${role.key}" role="button" tabindex="0">
           <div class="role-photo-picker">
-            <img src="${escapeHtml(settings.rolePhotos?.[role.key] || "./assets/kt-sport-logo.jpg")}" alt="${escapeHtml(roleDisplay(role))}" />
+            <img src="${escapeHtml(cacheBustLocalImage(settings.rolePhotos?.[role.key] || "./assets/kt-sport-logo.jpg"))}" alt="${escapeHtml(roleDisplay(role))}" />
             <label class="photo-upload-button" title="Upload photo">
               +
               <input data-role-photo-key="${role.key}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
@@ -332,7 +339,7 @@ function renderRoleMenu() {
     `
       <div class="role-menu-card ${staffPanelOpen ? "active" : ""}" data-staff-menu role="button" tabindex="0">
         <div class="role-photo-picker">
-          <img src="${escapeHtml(settings.rolePhotos?.staff || "./assets/kt-sport-logo.jpg")}" alt="ພະນັກງານ" />
+          <img src="${escapeHtml(cacheBustLocalImage(settings.rolePhotos?.staff || "./assets/kt-sport-logo.jpg"))}" alt="ພະນັກງານ" />
           <label class="photo-upload-button" title="Upload photo">
             +
             <input data-role-photo-key="staff" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
@@ -367,7 +374,7 @@ function renderStaffPanel() {
           (staff, index) => `
             <article class="staff-card ${activeStaffIndex === index ? "active" : ""} ${isBirthdayToday(staff.birthDate) ? "birthday" : ""}" data-staff-index="${index}">
               <div class="staff-photo-picker">
-                <img src="${escapeHtml(staffPhotoFor(staff, index))}" alt="${escapeHtml(staff.name)}" />
+                <img src="${escapeHtml(cacheBustLocalImage(staffPhotoFor(staff, index)))}" alt="${escapeHtml(staff.name)}" />
                 <label class="photo-upload-button" title="Upload photo">
                   +
                   <input data-staff-photo-key="${escapeHtml(staffPhotoKey(staff, index))}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
@@ -407,6 +414,41 @@ function renderStaffWorkspace() {
     `;
   }
   return staffTaskMarkup(staff, activeStaffIndex);
+}
+
+function staffHistoryMarkup(order) {
+  const history = Array.isArray(order.productionHistory) ? order.productionHistory : [];
+  if (!history.length) return `<p class="staff-task-history-empty">ຍັງບໍ່ມີປະຫວັດການຜະລິດ</p>`;
+
+  return `
+    <ol class="staff-task-history">
+      ${history
+        .map((item) => {
+          const images = Array.isArray(item.images) ? item.images : [];
+          return `
+            <li>
+              <strong>${escapeHtml(statusLabel(item.status))}</strong>
+              <span>${escapeHtml(item.actor || "ບໍ່ລະບຸ")} · ${escapeHtml(formatDateTime(item.createdAt))}</span>
+              ${item.note ? `<small>${escapeHtml(item.note)}</small>` : ""}
+              ${
+                images.length
+                  ? `<div class="history-gallery">${images
+                      .map(
+                        (image) => `
+                          <a href="${escapeHtml(image)}" target="_blank">
+                            <img src="${escapeHtml(image)}" alt="${escapeHtml(statusLabel(item.status))}" onerror="this.src='./assets/kt-sport-logo.jpg'" />
+                          </a>
+                        `,
+                      )
+                      .join("")}</div>`
+                  : ""
+              }
+            </li>
+          `;
+        })
+        .join("")}
+    </ol>
+  `;
 }
 
 function staffTaskMarkup(staff, staffIndex) {
@@ -456,20 +498,29 @@ function staffTaskMarkup(staff, staffIndex) {
                     const doneBy = history?.actor || "";
                     const canCancel = doneBy === staff.name;
                     const locked = Boolean(history && !canCancel);
+                    const imageInputId = `staff-task-images-${order.code}-${status}`;
                     return `
                     <article class="staff-task-item ${history ? "done" : ""}">
                       <img class="staff-task-image" src="${escapeHtml(order.productImage || order.products?.[0]?.image || defaultProductImage)}" alt="${escapeHtml(order.code)}" onerror="this.src='./assets/kt-sport-logo.jpg'" />
-                      <div>
+                      <div class="staff-task-main">
                         <strong>${escapeHtml(order.code)}</strong>
                         <span>${escapeHtml(order.customerName || "ບໍ່ລະບຸຊື່")} · ${escapeHtml(statusLabel(order.productionStatus))}</span>
                         <small>${escapeHtml(orderProductsSummary(order) || "ບໍ່ມີລາຍການສິນຄ້າ")}</small>
                         <small>${escapeHtml(staffDutyForStatus(staff, status))} (${escapeHtml(statusLabel(status))})</small>
                         ${history ? `<small>ຜູ້ເຮັດ: ${escapeHtml(doneBy || "ບໍ່ລະບຸ")} · ${escapeHtml(formatDateTime(history.createdAt))}</small>` : ""}
+                        ${staffHistoryMarkup(order)}
                       </div>
-                      <button type="button" data-staff-confirm="${staffIndex}" data-order-code="${escapeHtml(order.code)}" data-status="${escapeHtml(status)}" ${history || !isNext ? "disabled" : ""}>
-                        ${locked ? "ມີຄົນກົດແລ້ວ" : history ? "ຢືນຢັນແລ້ວ" : isNext ? `ຢືນຢັນ ${escapeHtml(staffDutyForStatus(staff, status))}` : "ລໍຖ້າຂັ້ນກ່ອນ"}
-                      </button>
-                      ${canCancel ? `<button type="button" data-staff-cancel="${staffIndex}" data-order-code="${escapeHtml(order.code)}" data-status="${escapeHtml(status)}">ຍົກເລີກ</button>` : ""}
+                      <div class="staff-task-controls">
+                        ${
+                          !history && isNext
+                            ? `<label for="${escapeHtml(imageInputId)}">ແນບຮູບ<input id="${escapeHtml(imageInputId)}" data-staff-task-images="${escapeHtml(order.code)}:${escapeHtml(status)}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple /></label>`
+                            : ""
+                        }
+                        <button type="button" data-staff-confirm="${staffIndex}" data-order-code="${escapeHtml(order.code)}" data-status="${escapeHtml(status)}" ${history || !isNext ? "disabled" : ""}>
+                          ${locked ? "ມີຄົນກົດແລ້ວ" : history ? "ຢືນຢັນແລ້ວ" : isNext ? `ຢືນຢັນ ${escapeHtml(staffDutyForStatus(staff, status))}` : "ລໍຖ້າຂັ້ນກ່ອນ"}
+                        </button>
+                        ${canCancel ? `<button type="button" data-staff-cancel="${staffIndex}" data-order-code="${escapeHtml(order.code)}" data-status="${escapeHtml(status)}">ຍົກເລີກ</button>` : ""}
+                      </div>
                     </article>
                   `;
                   },
@@ -1685,13 +1736,23 @@ async function confirmStaffTask(staffIndex, code, status) {
   if (!staff) return;
   const duty = staffDutyForStatus(staff, status);
   setRoleNotice(`ກຳລັງຢືນຢັນ ${duty}...`, "muted");
+  let images = [];
+  const imageInput = Array.from(document.querySelectorAll("[data-staff-task-images]")).find(
+    (input) => input.dataset.staffTaskImages === `${code}:${status}`,
+  );
+  try {
+    images = imageInput ? await readFilesAsDataUrls(imageInput.files, 10) : [];
+  } catch {
+    setRoleNotice("ຮູບໃຫຍ່ເກີນໄປ ຫຼື ອ່ານຮູບບໍ່ໄດ້", "error");
+    return;
+  }
   const response = await fetch(`/api/orders/${encodeURIComponent(code)}/status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       status,
       note: `ຢືນຢັນໂດຍ ${staff.name} (${duty})`,
-      images: [],
+      images,
       actor: staff.name,
     }),
   });

@@ -1087,9 +1087,9 @@ textarea {
 
 .staff-task-item {
   display: grid;
-  grid-template-columns: 86px minmax(0, 1fr) auto;
+  grid-template-columns: 86px minmax(0, 1fr) minmax(160px, auto);
   gap: 10px;
-  align-items: center;
+  align-items: start;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1105,7 +1105,7 @@ textarea {
   background: #fff5f5;
 }
 
-.staff-task-item div {
+.staff-task-main {
   display: grid;
   gap: 3px;
 }
@@ -1124,6 +1124,49 @@ textarea {
   background: #d9e3e8;
   color: var(--muted);
   cursor: not-allowed;
+}
+
+.staff-task-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.staff-task-controls label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.staff-task-controls input {
+  width: 100%;
+  font-size: 12px;
+}
+
+.staff-task-history,
+.staff-task-history-empty {
+  margin: 8px 0 0;
+}
+
+.staff-task-history {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.staff-task-history li {
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.staff-task-history strong,
+.staff-task-history span,
+.staff-task-history small {
+  display: block;
 }
 
 @keyframes birthdayPulse {

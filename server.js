@@ -347,6 +347,13 @@ function normalizeOrder(payload, existingOrder = {}) {
   };
 }
 
+function publicOrder(order) {
+  return {
+    ...order,
+    productionHistory: [],
+  };
+}
+
 async function ensureJsonFile(file, seedFile) {
   try {
     await fs.access(file);
@@ -786,7 +793,7 @@ async function handleApi(req, res, url) {
     const orders = await readOrders();
     const order = orders[code];
     if (!order || order.deletedAt) return sendJson(res, 404, { error: "ORDER_NOT_FOUND" });
-    return sendJson(res, 200, { data: order });
+    return sendJson(res, 200, { data: isAuthenticated(req) ? order : publicOrder(order) });
   }
 
   if (req.method === "GET" && publicWorkflowMatch) {
