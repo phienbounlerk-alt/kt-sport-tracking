@@ -481,8 +481,11 @@ function restorePreviousStatus(order, removedStatus) {
 async function readStaticFile(filePath, res) {
   try {
     const data = await fs.readFile(filePath);
+    const ext = path.extname(filePath);
+    const noCache = new Set([".html", ".js", ".css"]);
     res.writeHead(200, {
-      "Content-Type": mimeTypes[path.extname(filePath)] || "application/octet-stream",
+      "Content-Type": mimeTypes[ext] || "application/octet-stream",
+      ...(noCache.has(ext) ? { "Cache-Control": "no-store, max-age=0" } : {}),
     });
     res.end(data);
   } catch {
