@@ -299,6 +299,16 @@ function isBirthdayToday(birthDate) {
   return Number(match[1]) === today.getDate() && Number(match[2]) === today.getMonth() + 1;
 }
 
+function staffPhotoKey(staff, index) {
+  const name = String(staff?.name || "").trim();
+  return name ? `staff:${name}` : `staff-index:${index}`;
+}
+
+function staffPhotoFor(staff, index) {
+  const photos = settings.staffPhotos || {};
+  return photos[staffPhotoKey(staff, index)] || photos[index] || "./assets/kt-sport-logo.jpg";
+}
+
 function renderRoleMenu() {
   const visibleRoles = roleDefinitions.filter((role) => !role.engineerOnly);
   document.querySelector("#roleMenuTabs").innerHTML = [
@@ -356,10 +366,10 @@ function renderStaffPanel() {
           (staff, index) => `
             <article class="staff-card ${activeStaffIndex === index ? "active" : ""} ${isBirthdayToday(staff.birthDate) ? "birthday" : ""}" data-staff-index="${index}">
               <div class="staff-photo-picker">
-                <img src="${escapeHtml(settings.staffPhotos?.[index] || "./assets/kt-sport-logo.jpg")}" alt="${escapeHtml(staff.name)}" />
+                <img src="${escapeHtml(staffPhotoFor(staff, index))}" alt="${escapeHtml(staff.name)}" />
                 <label class="photo-upload-button" title="Upload photo">
                   +
-                  <input data-staff-photo-index="${index}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                  <input data-staff-photo-key="${escapeHtml(staffPhotoKey(staff, index))}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
                 </label>
               </div>
               <strong>${escapeHtml(staff.name.toUpperCase())}</strong>
@@ -1761,7 +1771,7 @@ function setupAdmin() {
   });
   document.querySelector("#roleAccessPanel").addEventListener("change", async (event) => {
     const roleInput = event.target.closest("[data-role-photo-key]");
-    const staffInput = event.target.closest("[data-staff-photo-index]");
+    const staffInput = event.target.closest("[data-staff-photo-key]");
     if (!roleInput && !staffInput) return;
     const file = event.target.files?.[0];
     if (!file) return;
@@ -1771,7 +1781,7 @@ function setupAdmin() {
         settings.rolePhotos = { ...(settings.rolePhotos || {}), [roleInput.dataset.rolePhotoKey]: image };
       }
       if (staffInput) {
-        settings.staffPhotos = { ...(settings.staffPhotos || {}), [staffInput.dataset.staffPhotoIndex]: image };
+        settings.staffPhotos = { ...(settings.staffPhotos || {}), [staffInput.dataset.staffPhotoKey]: image };
       }
       await saveSettings();
       renderRoleMenu();
