@@ -1764,6 +1764,36 @@ async function logout() {
   window.location.href = "/login.html";
 }
 
+async function handlePhotoUploadChange(event) {
+  if (event.ktPhotoUploadHandled) return;
+  const roleInput = event.target.closest("[data-role-photo-key]");
+  const staffInput = event.target.closest("[data-staff-photo-key]");
+  if (!roleInput && !staffInput) return;
+
+  event.ktPhotoUploadHandled = true;
+  event.stopPropagation();
+
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const image = await uploadImageFile(file);
+    if (roleInput) {
+      settings.rolePhotos = { ...(settings.rolePhotos || {}), [roleInput.dataset.rolePhotoKey]: image };
+    }
+    if (staffInput) {
+      settings.staffPhotos = { ...(settings.staffPhotos || {}), [staffInput.dataset.staffPhotoKey]: image };
+    }
+    await saveSettings();
+    renderRoleMenu();
+    if (staffInput) renderStaffPanel();
+    setRoleNotice("ບັນທຶກຮູບສຳເລັດ", "success");
+  } catch {
+    setRoleNotice("ອັບໂຫຼດຮູບບໍ່ສຳເລັດ", "error");
+  } finally {
+    event.target.value = "";
+  }
+}
+
 function setupAdmin() {
   renderRoleMenu();
   refreshRoleLogin();
@@ -1807,29 +1837,8 @@ function setupAdmin() {
     lastRoleClick = { key: roleKey, at: now };
     if (isSecondClick) beginRoleEntry(roleKey);
   });
-  document.querySelector("#roleAccessPanel").addEventListener("change", async (event) => {
-    const roleInput = event.target.closest("[data-role-photo-key]");
-    const staffInput = event.target.closest("[data-staff-photo-key]");
-    if (!roleInput && !staffInput) return;
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      const image = await uploadImageFile(file);
-      if (roleInput) {
-        settings.rolePhotos = { ...(settings.rolePhotos || {}), [roleInput.dataset.rolePhotoKey]: image };
-      }
-      if (staffInput) {
-        settings.staffPhotos = { ...(settings.staffPhotos || {}), [staffInput.dataset.staffPhotoKey]: image };
-      }
-      await saveSettings();
-      renderRoleMenu();
-      setRoleNotice("ບັນທຶກຮູບສຳເລັດ", "success");
-    } catch {
-      setRoleNotice("ອັບໂຫຼດຮູບບໍ່ສຳເລັດ", "error");
-    } finally {
-      event.target.value = "";
-    }
-  });
+  document.querySelector("#roleAccessPanel").addEventListener("change", handlePhotoUploadChange);
+  document.querySelector("#staffPanel").addEventListener("change", handlePhotoUploadChange);
   document.querySelector("#staffPanel").addEventListener("click", (event) => {
     if (event.target.matches("input[type='file']") || event.target.closest(".photo-upload-button")) return;
     const lockButton = event.target.closest("[data-staff-lock]");

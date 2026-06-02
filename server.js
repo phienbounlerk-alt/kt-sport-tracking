@@ -247,21 +247,30 @@ function normalizeSettings(settings = {}) {
   const staffPhotos = settings.staffPhotos && typeof settings.staffPhotos === "object" ? settings.staffPhotos : {};
   const staffPasscodes = settings.staffPasscodes && typeof settings.staffPasscodes === "object" ? settings.staffPasscodes : {};
   const staffMembers = Array.isArray(settings.staffMembers) ? settings.staffMembers : [];
+  const normalizedStaffMembers = staffMembers
+    .map((staff, index) => ({
+      name: String(staff.name || `Staff ${index + 1}`).trim(),
+      birthDate: String(staff.birthDate || "ບໍ່ມີຂໍ້ມູນ").trim(),
+      duties: Array.isArray(staff.duties)
+        ? staff.duties.map((duty) => String(duty || "").trim()).filter(Boolean)
+        : [],
+    }))
+    .filter((staff) => staff.name);
+  const normalizedStaffPhotos = { ...staffPhotos };
+  normalizedStaffMembers.forEach((staff, index) => {
+    const legacyPhoto = staffPhotos[index] || staffPhotos[String(index)];
+    const nameKey = `staff:${staff.name}`;
+    if (legacyPhoto && !normalizedStaffPhotos[nameKey]) {
+      normalizedStaffPhotos[nameKey] = legacyPhoto;
+    }
+  });
   return {
     adminNames: Array.from({ length: 10 }, (_, index) => normalizeAdminName(names[index], index)),
     shopPhone: String(settings.shopPhone || "8562077728239").replace(/\D/g, "") || "8562077728239",
     rolePhotos,
-    staffPhotos,
+    staffPhotos: normalizedStaffPhotos,
     staffPasscodes,
-    staffMembers: staffMembers
-      .map((staff, index) => ({
-        name: String(staff.name || `Staff ${index + 1}`).trim(),
-        birthDate: String(staff.birthDate || "ບໍ່ມີຂໍ້ມູນ").trim(),
-        duties: Array.isArray(staff.duties)
-          ? staff.duties.map((duty) => String(duty || "").trim()).filter(Boolean)
-          : [],
-      }))
-      .filter((staff) => staff.name),
+    staffMembers: normalizedStaffMembers,
     rolePasscodes: {
       president: String(rolePasscodes.president || "1234"),
       vice: String(rolePasscodes.vice || "1234"),
