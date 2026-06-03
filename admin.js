@@ -308,13 +308,31 @@ function staffPhotoKey(staff, index) {
 
 function staffPhotoFor(staff, index) {
   const photos = settings.staffPhotos || {};
-  return photos[staffPhotoKey(staff, index)] || photos[index] || "./assets/kt-sport-logo.jpg";
+  return photos[staffPhotoKey(staff, index)] || photos[index] || "";
 }
 
 function cacheBustLocalImage(src) {
   if (!src || !String(src).startsWith("/uploads/")) return src;
   const separator = src.includes("?") ? "&" : "?";
   return `${src}${separator}v=${assetCacheVersion}`;
+}
+
+function staffInitials(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((part) => !["mr", "ms", "mrs", "miss"].includes(part.toLowerCase().replace(".", "")));
+  return (parts[0]?.[0] || "K").toUpperCase() + (parts[1]?.[0] || "T").toUpperCase();
+}
+
+function staffPhotoMarkup(staff, index) {
+  const photo = staffPhotoFor(staff, index);
+  if (photo) {
+    return `<img src="${escapeHtml(cacheBustLocalImage(photo))}" alt="${escapeHtml(staff.name)}" />`;
+  }
+  const colorIndex = Math.abs(String(staff.name || "").split("").reduce((sum, char) => sum + char.charCodeAt(0), 0)) % 6;
+  return `<span class="staff-photo-placeholder staff-photo-placeholder-${colorIndex}">${escapeHtml(staffInitials(staff.name))}</span>`;
 }
 
 function renderRoleMenu() {
@@ -374,7 +392,7 @@ function renderStaffPanel() {
           (staff, index) => `
             <article class="staff-card ${activeStaffIndex === index ? "active" : ""} ${isBirthdayToday(staff.birthDate) ? "birthday" : ""}" data-staff-index="${index}">
               <div class="staff-photo-picker">
-                <img src="${escapeHtml(cacheBustLocalImage(staffPhotoFor(staff, index)))}" alt="${escapeHtml(staff.name)}" />
+                ${staffPhotoMarkup(staff, index)}
                 <label class="photo-upload-button" title="Upload photo">
                   +
                   <input data-staff-photo-key="${escapeHtml(staffPhotoKey(staff, index))}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
