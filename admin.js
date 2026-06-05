@@ -103,6 +103,7 @@ let activeStaffIndex = null;
 let unlockedStaffIndex = null;
 let ordersSyncTimer = null;
 let firestoreOrdersUnsubscribe = null;
+let serverOrdersEventSource = null;
 let catalogItems = [];
 let catalogSearch = "";
 let filters = {
@@ -1434,19 +1435,41 @@ function normalizeRealtimeOrder(order) {
   return normalized;
 }
 
+function applyRealtimeOrders(realtimeOrders) {
+  if (!Array.isArray(realtimeOrders) || !realtimeOrders.length) return;
+  orders = realtimeOrders.map(normalizeRealtimeOrder);
+  renderRoleMenuSummary();
+  if (staffPanelOpen) renderStaffPanel();
+  renderOrdersList();
+  const activeOrder = currentOrder();
+  if (activeOrder) fillForm(activeOrder);
+}
+
+function startServerOrdersSync() {
+  if (serverOrdersEventSource || !window.EventSource) return;
+  serverOrdersEventSource = new EventSource("/api/orders/stream");
+  serverOrdersEventSource.addEventListener("orders", (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      applyRealtimeOrders(payload.orders);
+    } catch (error) {
+      console.warn("Server realtime orders parse failed:", error.message);
+    }
+  });
+  serverOrdersEventSource.addEventListener("error", () => {
+    if (serverOrdersEventSource?.readyState === EventSource.CLOSED) {
+      serverOrdersEventSource = null;
+    }
+  });
+}
+
 async function startFirestoreOrdersSync() {
   if (firestoreOrdersUnsubscribe) return;
   try {
     const { listenToOrdersRealtime } = await import("./firebase-client.js");
     firestoreOrdersUnsubscribe = listenToOrdersRealtime({
       onAll(realtimeOrders) {
-        if (!Array.isArray(realtimeOrders) || !realtimeOrders.length) return;
-        orders = realtimeOrders.map(normalizeRealtimeOrder);
-        renderRoleMenuSummary();
-        if (staffPanelOpen) renderStaffPanel();
-        renderOrdersList();
-        const activeOrder = currentOrder();
-        if (activeOrder) fillForm(activeOrder);
+        applyRealtimeOrders(realtimeOrders);
       },
       onError(error) {
         console.warn("Firestore realtime orders disabled:", error.message);
@@ -2148,7 +2171,10 @@ function setupAdmin() {
       fillForm(emptyOrder());
       return loadOrders();
     })
-    .then(() => startFirestoreOrdersSync())
+    .then(() => {
+      startServerOrdersSync();
+      return startFirestoreOrdersSync();
+    })
     .catch(() => setAdminNotice("ດຶງຂໍ້ມູນບໍ່ໄດ້", "error"));
 }
 

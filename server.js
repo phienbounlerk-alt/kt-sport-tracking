@@ -33,6 +33,7 @@ const firebaseWebApiKey = String(
 const firebaseSyncEmail = String(process.env.FIREBASE_SYNC_EMAIL || "").trim();
 const firebaseSyncPassword = String(process.env.FIREBASE_SYNC_PASSWORD || "").trim();
 const sessions = new Map();
+const orderStreamClients = new Set();
 const maxImageBytes = 25_000_000;
 let firebaseAuthCache = null;
 
@@ -168,6 +169,51 @@ function requestBaseUrl(req) {
   if (publicBaseUrl) return publicBaseUrl;
   const proto = req.headers["x-forwarded-proto"] || "http";
   return `${proto}://${req.headers.host}`;
+}
+
+function ordersList(orders, includeDeleted = true) {
+  return Object.values(orders)
+    .filter((order) => includeDeleted || !order.deletedAt)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function writeSse(res, event, data) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+function closeOrderStream(res) {
+  const client = Array.from(orderStreamClients).find((entry) => entry.res === res);
+  if (!client) return;
+  clearInterval(client.heartbeat);
+  orderStreamClients.delete(client);
+}
+
+async function streamOrders(req, res) {
+  if (!requireAuth(req, res)) return;
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream;charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  const heartbeat = setInterval(() => {
+    res.write(": keep-alive\n\n");
+  }, 25_000);
+  orderStreamClients.add({ res, heartbeat });
+  req.on("close", () => closeOrderStream(res));
+  writeSse(res, "orders", { orders: ordersList(await readOrders()), syncedAt: new Date().toISOString() });
+}
+
+function broadcastOrders(orders) {
+  const payload = { orders: ordersList(orders), syncedAt: new Date().toISOString() };
+  for (const client of orderStreamClients) {
+    try {
+      writeSse(client.res, "orders", payload);
+    } catch {
+      closeOrderStream(client.res);
+    }
+  }
 }
 
 function makeOrderCode(orders) {
@@ -394,6 +440,7 @@ async function writeOrders(orders) {
     }
   }
   await fs.writeFile(dataFile, `${JSON.stringify(orders, null, 2)}\n`);
+  broadcastOrders(orders);
   await syncFirestoreOrders(Object.values(orders));
   await syncGoogleSheets("orders", { orders: Object.values(orders) });
 }
@@ -709,6 +756,11 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, error.statusCode || 400, { error: error.message });
     }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/orders/stream") {
+    await streamOrders(req, res);
+    return;
   }
 
   if (req.method === "GET" && url.pathname === "/api/settings") {
