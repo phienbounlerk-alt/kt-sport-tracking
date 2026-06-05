@@ -1011,12 +1011,18 @@ async function serveStatic(req, res, url) {
 
   const normalizedRequest = path.posix.normalize(requestedPath);
   const publicExtensions = new Set([".html", ".css", ".js", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]);
+  const privateFiles = new Set([
+    "/server.js",
+    "/package.json",
+    "/package-lock.json",
+    "/firebase.json",
+    "/firestore.rules",
+    "/render.yaml",
+  ]);
   if (
     normalizedRequest.split("/").some((part) => part.startsWith(".")) ||
     normalizedRequest.startsWith("/data/") ||
-    normalizedRequest === "/firebase.json" ||
-    normalizedRequest === "/firestore.rules" ||
-    normalizedRequest === "/package.json" ||
+    privateFiles.has(normalizedRequest) ||
     !publicExtensions.has(path.extname(normalizedRequest))
   ) {
     res.writeHead(404);
