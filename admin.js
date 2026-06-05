@@ -347,7 +347,7 @@ function renderRoleMenu() {
             <img src="${escapeHtml(cacheBustLocalImage(settings.rolePhotos?.[role.key] || "./assets/kt-sport-logo.jpg"))}" alt="${escapeHtml(roleDisplay(role))}" />
             <label class="photo-upload-button" title="Upload photo">
               +
-              <input data-role-photo-key="${role.key}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <input data-role-photo-key="${role.key}" type="file" accept="image/*" />
             </label>
           </div>
           <strong>${role.title}</strong>
@@ -361,7 +361,7 @@ function renderRoleMenu() {
           <img src="${escapeHtml(cacheBustLocalImage(settings.rolePhotos?.staff || "./assets/kt-sport-logo.jpg"))}" alt="ພະນັກງານ" />
           <label class="photo-upload-button" title="Upload photo">
             +
-            <input data-role-photo-key="staff" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+            <input data-role-photo-key="staff" type="file" accept="image/*" />
           </label>
         </div>
         <strong>ພະນັກງານ</strong>
@@ -396,7 +396,7 @@ function renderStaffPanel() {
                 ${staffPhotoMarkup(staff, index)}
                 <label class="photo-upload-button" title="Upload photo">
                   +
-                  <input data-staff-photo-key="${escapeHtml(staffPhotoKey(staff, index))}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                  <input data-staff-photo-key="${escapeHtml(staffPhotoKey(staff, index))}" type="file" accept="image/*" />
                 </label>
               </div>
               <strong>${escapeHtml(staff.name.toUpperCase())}</strong>
@@ -532,7 +532,7 @@ function staffTaskMarkup(staff, staffIndex) {
                       <div class="staff-task-controls">
                         ${
                           !history && isNext
-                            ? `<label for="${escapeHtml(imageInputId)}">ແນບຮູບ<input id="${escapeHtml(imageInputId)}" data-staff-task-images="${escapeHtml(order.code)}:${escapeHtml(status)}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple /></label>`
+                            ? `<label for="${escapeHtml(imageInputId)}">ແນບຮູບ<input id="${escapeHtml(imageInputId)}" data-staff-task-images="${escapeHtml(order.code)}:${escapeHtml(status)}" type="file" accept="image/*" multiple /></label>`
                             : ""
                         }
                         <button type="button" data-staff-confirm="${staffIndex}" data-order-code="${escapeHtml(order.code)}" data-status="${escapeHtml(status)}" ${history || !isNext ? "disabled" : ""}>
@@ -574,6 +574,9 @@ function setRoleWorkspace(roleKey) {
   }
   if (role.key === "admin" && (activeMenu === "ALL" || activeMenu === "CATALOG")) {
     activeMenu = assigneeNames()[0];
+  }
+  if (["president", "vice", "manager", "accounting", "engineer"].includes(role.key) && activeMenu !== "CATALOG") {
+    activeMenu = "ALL";
   }
   localStorage.setItem("ktActiveRole", roleKey);
   document.querySelector("#roleAccessPanel").hidden = true;
@@ -1196,7 +1199,7 @@ function renderProducts(products) {
               </div>
               <label>
                 Upload ຮູບສິນຄ້າ 4K ສູງສຸດ 10 ຮູບ
-                <input data-product-upload="${index}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple />
+                <input data-product-upload="${index}" type="file" accept="image/*" multiple />
               </label>
             </div>
           </div>
@@ -1215,6 +1218,50 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function canvasToJpegDataUrl(canvas, quality = 0.86) {
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+async function fileToImageBitmap(file, dataUrl) {
+  if (window.createImageBitmap) {
+    try {
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {
+      // Fall back to HTMLImageElement below.
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
+}
+
+async function normalizeImageFileForUpload(file) {
+  if (file.size > 25_000_000) throw new Error("IMAGE_TOO_LARGE");
+  const dataUrl = await readFileAsDataUrl(file);
+  if (String(file.type || "").toLowerCase() === "image/gif") return dataUrl;
+
+  try {
+    const image = await fileToImageBitmap(file, dataUrl);
+    const width = image.width || image.naturalWidth;
+    const height = image.height || image.naturalHeight;
+    if (!width || !height) return dataUrl;
+    const maxSide = 1600;
+    const scale = Math.min(1, maxSide / Math.max(width, height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    if (typeof image.close === "function") image.close();
+    return canvasToJpegDataUrl(canvas);
+  } catch {
+    return dataUrl;
+  }
+}
+
 async function readFilesAsDataUrls(files, limit = 10) {
   const selectedFiles = [...(files || [])].slice(0, limit);
   if (selectedFiles.some((file) => file.size > 25_000_000)) {
@@ -1222,14 +1269,13 @@ async function readFilesAsDataUrls(files, limit = 10) {
   }
   const dataUrls = [];
   for (const file of selectedFiles) {
-    dataUrls.push(await readFileAsDataUrl(file));
+    dataUrls.push(await normalizeImageFileForUpload(file));
   }
   return dataUrls;
 }
 
 async function uploadImageFile(file) {
-  if (file.size > 25_000_000) throw new Error("IMAGE_TOO_LARGE");
-  const dataUrl = await readFileAsDataUrl(file);
+  const dataUrl = await normalizeImageFileForUpload(file);
   const response = await fetch("/api/uploads", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1264,7 +1310,7 @@ async function uploadProductImage(input) {
   const uploadedUrls = [];
 
   for (const file of selectedFiles) {
-    const dataUrl = await readFileAsDataUrl(file);
+    const dataUrl = await normalizeImageFileForUpload(file);
     const response = await fetch("/api/uploads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1511,11 +1557,11 @@ async function saveSettings() {
   });
   if (response.status === 401) {
     window.location.href = "/login.html";
-    return;
+    throw new Error("UNAUTHORIZED");
   }
   if (!response.ok) {
     setAdminNotice("ບັນທຶກຊື່ Admin ບໍ່ສຳເລັດ", "error");
-    return;
+    throw new Error("SAVE_SETTINGS_FAILED");
   }
   const result = await response.json();
   settings = {
@@ -1590,7 +1636,7 @@ function renderCatalogEditor() {
             <label class="full-span">ຮູບ URL<input data-catalog-field="image" value="${escapeHtml(item.image)}" /></label>
             <label class="full-span catalog-upload-label">
               ປ່ຽນຮູບສິນຄ້າ
-              <input data-catalog-upload="${escapeHtml(item.id)}" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <input data-catalog-upload="${escapeHtml(item.id)}" type="file" accept="image/*" />
             </label>
             <label class="catalog-visible"><input data-catalog-field="visible" type="checkbox" ${item.visible !== false ? "checked" : ""} /> ສະແດງໃນ shop</label>
             <button type="button" data-remove-catalog="${escapeHtml(item.id)}">ລົບ</button>
@@ -1632,7 +1678,7 @@ async function uploadCatalogImage(input) {
 
   const row = input.closest(".catalog-edit-row");
   setCatalogNotice("ກຳລັງ upload ຮູບສິນຄ້າ...", "muted");
-  const dataUrl = await readFileAsDataUrl(file);
+  const dataUrl = await normalizeImageFileForUpload(file);
   const response = await fetch("/api/uploads", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -18,6 +18,46 @@ function readFileAsDataUrl(file) {
   });
 }
 
+async function fileToImageBitmap(file, dataUrl) {
+  if (window.createImageBitmap) {
+    try {
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {
+      // Fall back to HTMLImageElement below.
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
+}
+
+async function normalizeImageFileForUpload(file) {
+  if (file.size > 25_000_000) throw new Error("IMAGE_TOO_LARGE");
+  const dataUrl = await readFileAsDataUrl(file);
+  if (String(file.type || "").toLowerCase() === "image/gif") return dataUrl;
+
+  try {
+    const image = await fileToImageBitmap(file, dataUrl);
+    const width = image.width || image.naturalWidth;
+    const height = image.height || image.naturalHeight;
+    if (!width || !height) return dataUrl;
+    const maxSide = 1600;
+    const scale = Math.min(1, maxSide / Math.max(width, height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    if (typeof image.close === "function") image.close();
+    return canvas.toDataURL("image/jpeg", 0.86);
+  } catch {
+    return dataUrl;
+  }
+}
+
 async function readFilesAsDataUrls(files) {
   const selectedFiles = [...(files || [])].slice(0, 10);
   if (selectedFiles.some((file) => file.size > 25_000_000)) {
@@ -25,7 +65,7 @@ async function readFilesAsDataUrls(files) {
   }
   const dataUrls = [];
   for (const file of selectedFiles) {
-    dataUrls.push(await readFileAsDataUrl(file));
+    dataUrls.push(await normalizeImageFileForUpload(file));
   }
   return dataUrls;
 }

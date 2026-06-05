@@ -135,6 +135,8 @@ function extensionForMime(mimeType) {
     "image/png": "png",
     "image/webp": "webp",
     "image/gif": "gif",
+    "image/heic": "heic",
+    "image/heif": "heif",
   }[mimeType];
 }
 
@@ -259,7 +261,7 @@ function normalizeProduct(product, index) {
 }
 
 async function saveDataUrlImage(dataUrl) {
-  const match = String(dataUrl || "").match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+  const match = String(dataUrl || "").match(/^data:(image\/(?:jpeg|png|webp|gif|heic|heif));base64,([A-Za-z0-9+/=]+)$/);
   if (!match) {
     const error = new Error("INVALID_IMAGE");
     error.statusCode = 400;
