@@ -206,12 +206,13 @@ async function ensureSession() {
 }
 
 function trackingUrl(code) {
-  const configuredUrl = window.KT_PUBLIC_BASE_URL ? window.KT_PUBLIC_BASE_URL.replace(/\/+$/, "") : "";
-  if (configuredUrl) return `${configuredUrl}/?code=${encodeURIComponent(code)}`;
   if (window.location.protocol === "file:") return `http://localhost:4173/?code=${encodeURIComponent(code)}`;
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
     return `http://${window.location.host}/?code=${encodeURIComponent(code)}`;
   }
+  if (window.location.origin) return `${window.location.origin}/?code=${encodeURIComponent(code)}`;
+  const configuredUrl = window.KT_PUBLIC_BASE_URL ? window.KT_PUBLIC_BASE_URL.replace(/\/+$/, "") : "";
+  if (configuredUrl) return `${configuredUrl}/?code=${encodeURIComponent(code)}`;
   return `${window.location.origin}/?code=${encodeURIComponent(code)}`;
 }
 

@@ -58,11 +58,12 @@ const escapeHtml = (value) =>
 let activeOrder = null;
 
 function publicBaseUrl() {
-  if (window.KT_PUBLIC_BASE_URL) return window.KT_PUBLIC_BASE_URL.replace(/\/+$/, "");
   if (window.location.protocol === "file:") return "http://localhost:4173";
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
     return `http://${window.location.host}`;
   }
+  if (window.location.origin) return window.location.origin;
+  if (window.KT_PUBLIC_BASE_URL) return window.KT_PUBLIC_BASE_URL.replace(/\/+$/, "");
   return window.location.origin;
 }
 
