@@ -167,10 +167,27 @@ function isValidWorkflowToken(code, status, token) {
   );
 }
 
-function requestBaseUrl(req) {
-  if (publicBaseUrl) return publicBaseUrl;
+function requestOrigin(req) {
   const proto = req.headers["x-forwarded-proto"] || "http";
-  return `${proto}://${req.headers.host}`;
+  const host = req.headers["x-forwarded-host"] || req.headers.host;
+  return `${proto}://${host}`;
+}
+
+function requestBaseUrl(req) {
+  const origin = requestOrigin(req).replace(/\/+$/, "");
+  if (!publicBaseUrl) return origin;
+
+  try {
+    const requestHost = new URL(origin).hostname;
+    const configuredHost = new URL(publicBaseUrl).hostname;
+    if (requestHost && requestHost !== configuredHost && !requestHost.endsWith(".onrender.com")) {
+      return origin;
+    }
+  } catch {
+    return origin;
+  }
+
+  return publicBaseUrl;
 }
 
 function ordersList(orders, includeDeleted = true) {
@@ -988,7 +1005,7 @@ async function serveStatic(req, res, url) {
 
   if (url.pathname === "/config.js") {
     res.writeHead(200, { "Content-Type": "application/javascript;charset=utf-8" });
-    res.end(`window.KT_PUBLIC_BASE_URL = ${JSON.stringify(publicBaseUrl)};`);
+    res.end(`window.KT_PUBLIC_BASE_URL = ${JSON.stringify(requestBaseUrl(req))};`);
     return;
   }
 
