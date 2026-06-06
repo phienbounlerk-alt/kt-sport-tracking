@@ -1573,6 +1573,10 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.sales-order-form [data-sales-hidden] {
+  display: none;
+}
+
 .products-heading {
   padding-top: 6px;
   border-top: 1px solid var(--line);
@@ -1606,6 +1610,33 @@ textarea {
   color: #b42318;
   cursor: pointer;
   font-size: 20px;
+}
+
+.size-quantity-list {
+  display: grid;
+  gap: 8px;
+  max-width: 360px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.size-quantity-row {
+  display: grid;
+  grid-template-columns: 52px minmax(90px, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.size-quantity-row span {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.size-quantity-row input {
+  min-height: 38px;
+  text-align: right;
 }
 
 .image-upload-row {

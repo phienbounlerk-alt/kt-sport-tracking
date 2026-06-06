@@ -263,6 +263,10 @@ function canEditOrders() {
   return ["admin", "engineer"].includes(roleInfo(activeRole).key);
 }
 
+function isSalesOrderForm() {
+  return roleInfo(activeRole).key === "admin";
+}
+
 function canManagePeople() {
   return ["president", "vice", "manager", "engineer"].includes(roleInfo(activeRole).key);
 }
@@ -277,6 +281,32 @@ function salesStaff() {
 
 function assigneeNames() {
   return salesStaff().map((staff) => staff.name);
+}
+
+const defaultSizeRows = ["M", "L", "XL"];
+
+function parseSizeQuantities(value = "") {
+  const quantities = Object.fromEntries(defaultSizeRows.map((size) => [size, 0]));
+  String(value)
+    .split(/[\n,/]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .forEach((entry) => {
+      const match = entry.match(/^([A-Za-z0-9+.-]+)\s*(?:x|:|-)?\s*(\d+)?$/i);
+      if (!match) return;
+      const size = match[1].toUpperCase();
+      if (!Object.prototype.hasOwnProperty.call(quantities, size)) return;
+      quantities[size] = Math.max(0, Number(match[2]) || 0);
+    });
+  return quantities;
+}
+
+function formatSizeQuantities(quantities) {
+  return defaultSizeRows.map((size) => `${size} ${Math.max(0, Number(quantities[size]) || 0)}`).join("\n");
+}
+
+function sizeQuantityTotal(quantities) {
+  return defaultSizeRows.reduce((sum, size) => sum + Math.max(0, Number(quantities[size]) || 0), 0);
 }
 
 function orderProductsSummary(order) {
@@ -901,6 +931,7 @@ function setAdminView(menu) {
   document.querySelector("#trashToggleButton").hidden = catalogMode || !editable;
   document.querySelector(".admin-menu-panel").hidden = roleInfo(activeRole).key === "admin";
   document.querySelector("#workflowPanel").hidden = catalogMode || !canUseWorkflowPanel();
+  document.querySelector("#orderForm")?.classList.toggle("sales-order-form", isSalesOrderForm());
   renderAdminMenu();
   if (catalogMode) {
     renderCatalogEditor();
@@ -1135,12 +1166,15 @@ async function loadWorkflowLinks(code) {
 }
 
 function renderProducts(products) {
+  const salesMode = isSalesOrderForm();
   document.querySelector("#productsEditor").innerHTML = products
     .map((product, index) => {
       const images = (Array.isArray(product.images) && product.images.length ? product.images : [product.image])
         .filter(Boolean)
         .slice(0, 10);
       const primaryImage = images[0] || defaultProductImage;
+      const sizeQuantities = parseSizeQuantities(product.shopSize);
+      const productName = product.productName || product.productType || "ເສື້ອກິລາ";
       return `
         <div class="product-editor" data-index="${index}">
           <div class="product-editor-head">
@@ -1156,22 +1190,47 @@ function renderProducts(products) {
                   .join("")}
               </select>
             </label>
-            <label>
-              ຊື່ສິນຄ້າ
-              <input data-product-field="productName" value="${escapeHtml(product.productName)}" placeholder="ໃສ່ຊື່ເອງ" required />
-            </label>
-            <label>
-              ໄຊ້/ຈຳນວນ
-              <input data-product-field="shopSize" value="${escapeHtml(product.shopSize)}" placeholder="M x2, L x3" />
-            </label>
-            <label>
-              ຈຳນວນ
-              <input data-product-field="amount" type="number" min="1" value="${product.amount || 1}" />
-            </label>
-            <label>
-              ຈຳນວນໄຊ້
-              <input data-product-field="patternQty" type="number" min="0" value="${product.patternQty || 0}" />
-            </label>
+            ${
+              salesMode
+                ? `
+                  <input data-product-field="productName" type="hidden" value="${escapeHtml(productName)}" />
+                  <input data-product-field="amount" type="hidden" value="${product.amount || 1}" />
+                  <input data-product-field="patternQty" type="hidden" value="${product.patternQty || 0}" />
+                  <label class="full-span">
+                    ຈຳນວນໄຊ້
+                    <div class="size-quantity-list">
+                      ${defaultSizeRows
+                        .map(
+                          (size) => `
+                            <div class="size-quantity-row">
+                              <span>${size}</span>
+                              <input data-size-quantity="${size}" type="number" min="0" value="${sizeQuantities[size] || 0}" />
+                            </div>
+                          `,
+                        )
+                        .join("")}
+                    </div>
+                  </label>
+                `
+                : `
+                  <label>
+                    ຊື່ສິນຄ້າ
+                    <input data-product-field="productName" value="${escapeHtml(product.productName)}" placeholder="ໃສ່ຊື່ເອງ" required />
+                  </label>
+                  <label>
+                    ໄຊ້/ຈຳນວນ
+                    <input data-product-field="shopSize" value="${escapeHtml(product.shopSize)}" placeholder="M x2, L x3" />
+                  </label>
+                  <label>
+                    ຈຳນວນ
+                    <input data-product-field="amount" type="number" min="1" value="${product.amount || 1}" />
+                  </label>
+                  <label>
+                    ຈຳນວນໄຊ້
+                    <input data-product-field="patternQty" type="number" min="0" value="${product.patternQty || 0}" />
+                  </label>
+                `
+            }
             <label>
               ຈຳນວນຜືນ
               <input data-product-field="fabricQty" type="number" min="0" value="${product.fabricQty || 0}" />
@@ -1353,12 +1412,19 @@ async function uploadProductImage(input) {
 function collectProducts() {
   return [...document.querySelectorAll(".product-editor")].map((editor) => {
     const get = (field) => editor.querySelector(`[data-product-field="${field}"]`)?.value || "";
-    const amount = Math.max(1, Number(get("amount")) || 1);
+    const sizeInputs = [...editor.querySelectorAll("[data-size-quantity]")];
+    const sizeQuantities = Object.fromEntries(
+      sizeInputs.map((input) => [input.dataset.sizeQuantity, Math.max(0, Number(input.value) || 0)]),
+    );
+    const hasSizeRows = sizeInputs.length > 0;
+    const sizeTotal = hasSizeRows ? sizeQuantityTotal(sizeQuantities) : 0;
+    const amount = Math.max(1, sizeTotal || Number(get("amount")) || 1);
     const price = Math.max(0, Number(get("price")) || 0);
+    const productType = get("productType").trim() || "ເສື້ອກິລາ";
     return {
-      productType: get("productType").trim() || "ເສື້ອກິລາ",
-      productName: get("productName").trim(),
-      shopSize: get("shopSize").trim(),
+      productType,
+      productName: get("productName").trim() || productType,
+      shopSize: hasSizeRows ? formatSizeQuantities(sizeQuantities) : get("shopSize").trim(),
       patternQty: Math.max(0, Number(get("patternQty")) || 0),
       fabricQty: Math.max(0, Number(get("fabricQty")) || 0),
       amount,
@@ -1373,6 +1439,7 @@ function collectProducts() {
 
 function fillForm(order, shouldRenderList = true) {
   activeCode = order.code || null;
+  document.querySelector("#orderForm")?.classList.toggle("sales-order-form", isSalesOrderForm());
   document.querySelector("#formTitle").textContent = activeCode ? `ແກ້ບິນ ${activeCode}` : "ສ້າງບິນໃໝ່";
   document.querySelector("#codeInput").value = order.code || "";
   document.querySelector("#codeInput").disabled = Boolean(activeCode);
@@ -1408,6 +1475,9 @@ function collectOrderPayload() {
   const products = collectProducts();
   const firstProduct = products[0];
   const receiveDate = document.querySelector("#receiveDateInput").value;
+  const assignedAdmin = isSalesOrderForm()
+    ? activeAdminName()
+    : document.querySelector("#assignedAdminInput").value || assigneeNames()[0];
   return {
     code: document.querySelector("#codeInput").value.trim().toUpperCase(),
     depositStatus: document.querySelector("#depositStatusInput").value,
@@ -1415,8 +1485,10 @@ function collectOrderPayload() {
     depositAmount: Math.max(0, Number(document.querySelector("#depositAmountInput").value) || 0),
     balanceAmount: Math.max(0, Number(document.querySelector("#balanceAmountInput").value) || 0),
     grandTotal: Math.max(0, Number(document.querySelector("#grandTotalInput").value) || totalFor({ products })),
-    assignedAdmin: document.querySelector("#assignedAdminInput").value || assigneeNames()[0],
-    customerName: document.querySelector("#customerNameInput").value.trim() || "ບໍ່ລະບຸຊື່",
+    assignedAdmin,
+    customerName: isSalesOrderForm()
+      ? "ບໍ່ລະບຸຊື່"
+      : document.querySelector("#customerNameInput").value.trim() || "ບໍ່ລະບຸຊື່",
     phone: document.querySelector("#phoneInput").value.trim(),
     addressCf: document.querySelector("#addressInput").value.trim(),
     productImage: firstProduct?.image || defaultProductImage,
