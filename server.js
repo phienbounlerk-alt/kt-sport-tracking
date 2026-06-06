@@ -978,6 +978,14 @@ async function handleApi(req, res, url) {
 }
 
 async function serveStatic(req, res, url) {
+  const legacyTrackingMatch = url.pathname.match(/\/trackOrder\/detail\/([^/?#]+)$/);
+  if (legacyTrackingMatch) {
+    const code = decodeURIComponent(legacyTrackingMatch[1]).trim().toUpperCase();
+    res.writeHead(302, { Location: `/?code=${encodeURIComponent(code)}` });
+    res.end();
+    return;
+  }
+
   if (url.pathname === "/config.js") {
     res.writeHead(200, { "Content-Type": "application/javascript;charset=utf-8" });
     res.end(`window.KT_PUBLIC_BASE_URL = ${JSON.stringify(publicBaseUrl)};`);
