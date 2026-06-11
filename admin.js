@@ -55,7 +55,7 @@ const defaultStaffMembers = [
   { name: "Mr Louiy", birthDate: "28/01/1997", duties: ["ລີດລົງຜ້າ"] },
   { name: "MS Anong", birthDate: "12/11/2000", duties: ["ຍິບ"] },
   { name: "Mr Jo", birthDate: "ຍັງບໍ່ມີຂໍ້ມູນ", duties: ["ລີດລົງຜ້າ"] },
-  { name: "Ms Mee", birthDate: "31/3/2004", duties: ["Sales"] },
+  { name: "FIED", birthDate: "16/12/2003", duties: ["Sales"] },
 ];
 let staffMembers = defaultStaffMembers.map((staff) => ({ ...staff, duties: [...staff.duties] }));
 

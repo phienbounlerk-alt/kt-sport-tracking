@@ -11,5 +11,8 @@
     "Admin 9",
     "Admin 10"
   ],
-  "shopPhone": "8562077728239"
+  "shopPhone": "8562077728239",
+  "staffPhotos": {
+    "staff:FIED": "./assets/staff-fied.jpg"
+  }
 }
